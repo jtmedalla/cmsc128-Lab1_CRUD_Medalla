@@ -1,3 +1,4 @@
+import os
 import sqlite3
 
 class SQLiteConn:
@@ -8,7 +9,7 @@ class SQLiteConn:
 
     # open the connection to the database
     def open(self):
-        self.conn = sqlite3.connect('todoList.db')
+        self.conn = sqlite3.connect(os.path.dirname(os.path.dirname(__file__)) + "/data/todolist.db")
         self.cursor = self.conn.cursor()
 
     # close the connection to the database
