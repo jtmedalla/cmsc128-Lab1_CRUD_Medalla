@@ -1,2 +1,5 @@
 # ignore created database files
 */*.db
+
+# ignore compiled python files
+*.pyc

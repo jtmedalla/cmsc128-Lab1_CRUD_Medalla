@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 class Priority(Enum):
     LOW = 0
     MED = 1
-    HIG = 2
+    HIGH = 2
 
 
 class Task:
@@ -20,20 +20,20 @@ class Task:
     description = "" 
     isComplete = False
 
-    def __init__(self, title, date, priority, category, description):
-        self.taskID = Task.taskID
-        Task.taskID += 1
+    def __init__(self, title, date, priority, category, description, completion=False):
         self.title = title
         self.date = date
         self.priority = priority
         self.category = category
         self.description = description
-        self.isComplete = False
+        self.isComplete = completion
 
     def __str__(self):
         return f"Task ID: {self.taskID}\nTitle: {self.title}\nDate: {self.date}\nPriority: {self.priority.name}\nCategory: {self.category}\nDescription: {self.description}\nCompleted: {self.isComplete}"
 
     # setters
+    def edit_taskID(self, new_taskID):
+        self.taskID = new_taskID
 
     def edit_title(self, new_title):
         self.title = new_title
