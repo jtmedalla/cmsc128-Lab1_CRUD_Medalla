@@ -18,7 +18,7 @@ class Task:
     priority = Priority.LOW
     category = ""
     description = "" 
-    isComplete = False
+    is_complete = False
 
     def __init__(self, title, date, priority, category, description, completion=False):
         self.title = title
