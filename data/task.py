@@ -18,20 +18,20 @@ class Task:
     dateDue = datetime.datetime.now(tz=ZoneInfo("Asia/Manila"))
     priority = Priority.LOW
     category = ""
-    description = "" 
-    isComplete = False
+    details = "" 
+    is_complete = False
 
-    def __init__(self, title, dateAdded, dateDue, priority, category, description, completion=False):
+    def __init__(self, title, dateAdded, dateDue, priority, category, details, completion=False):
         self.title = title
         self.dateAdded = dateAdded
         self.dateDue = dateDue
         self.priority = priority
         self.category = category
-        self.description = description
-        self.isComplete = completion
+        self.details = details
+        self.is_complete = completion
 
     def __str__(self):
-        return f"Task ID: {self.taskID}\nTitle: {self.title}\nDate Added: {self.dateAdded}\nDate Due: {self.dateDue}\nPriority: {self.priority.name}\nCategory: {self.category}\nDescription: {self.description}\nCompleted: {self.isComplete}"
+        return f"Task ID: {self.taskID}\nTitle: {self.title}\nDate Added: {self.dateAdded}\nDate Due: {self.dateDue}\nPriority: {self.priority}\nCategory: {self.category}\ndetails: {self.details}\nCompleted: {self.is_complete}"
 
     # setters
     def edit_taskID(self, new_taskID):
@@ -46,8 +46,8 @@ class Task:
     def edit_category(self, new_category):
         self.category = new_category
 
-    def edit_description(self, new_description):
-        self.description = new_description
+    def edit_details(self, new_details):
+        self.details = new_details
 
     def edit_dateAdded(self, new_date):
         self.dateAdded = new_date
@@ -56,4 +56,4 @@ class Task:
         self.dateDue = new_date
 
     def toggle_completion(self):
-        self.isComplete = self.isComplete is True if False else True
+        self.is_complete = self.is_complete is True if False else True

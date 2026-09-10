@@ -23,8 +23,8 @@ class SQLiteConn:
                                 dateDue TEXT NOT NULL,
                                 priority INTEGER NOT NULL,
                                 category TEXT NOT NULL,
-                                description TEXT NOT NULL,
-                                isComplete BOOLEAN NOT NULL CHECK (isComplete IN (0, 1))
+                                details TEXT NOT NULL,
+                                is_complete BOOLEAN NOT NULL CHECK (is_complete IN (0, 1))
                             )''')
         self.conn.commit()
 
@@ -44,10 +44,10 @@ class SQLiteConn:
         self.conn.commit()
 
     # add an entry to the database
-    def add_entry(self, title, dateAdded, dateDue, priority, category, description, completion=False):
-        query = "INSERT INTO tasks (title, dateAdded, dateDue, priority, category, description, isComplete) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    def add_entry(self, title, dateAdded, dateDue, priority, category, details, completion=False):
+        query = "INSERT INTO tasks (title, dateAdded, dateDue, priority, category, details, is_complete) VALUES (?, ?, ?, ?, ?, ?, ?)"
         priority_value = getattr(priority, "value", priority)
-        params = (title, dateAdded, dateDue, priority_value, category, description, int(completion))
+        params = (title, dateAdded, dateDue, priority_value, category, details, int(completion))
         self.execute(query, params)
 
         # return the id to assign to Task object based on database increments
@@ -63,7 +63,7 @@ class SQLiteConn:
         self.execute(query, params)
 
     # update an entry in the database
-    def update_entry(self, taskID, title=None, dateAdded=None, dateDue=None, priority=None, category=None, description=None, completion=None):
+    def update_entry(self, taskID, title=None, dateAdded=None, dateDue=None, priority=None, category=None, details=None, completion=None):
         query = "UPDATE tasks SET "
         params = []
         if title is not None:
@@ -81,11 +81,11 @@ class SQLiteConn:
         if category is not None:
             query += "category = ?, "
             params.append(category)
-        if description is not None:
-            query += "description = ?, "
-            params.append(description)
+        if details is not None:
+            query += "details = ?, "
+            params.append(details)
         if completion is not None:
-            query += "isComplete = ?, "
+            query += "is_complete = ?, "
             params.append(int(completion))
         query = query.rstrip(", ") 
         query += " WHERE taskID = ?"
@@ -104,10 +104,10 @@ class SQLiteConn:
                 row[1],  # title
                 row[2],  # dateAdded
                 row[3],  # dateDue
-                int(row[4]),  # priority
+                row[4],  # priority
                 row[5],  # category
-                row[6],  # description
-                bool(row[7])  # isComplete
+                row[6],  # details
+                bool(row[7])  # is_complete
             )
             new_task.taskID = int(row[0])
             results.append(new_task)
@@ -127,8 +127,8 @@ class SQLiteConn:
                 result[3],  # dateDue
                 int(result[4]),  # priority
                 result[5],  # category
-                result[6],  # description
-                bool(result[7])  # isComplete
+                result[6],  # details
+                bool(result[7])  # is_complete
             )
             new_task.taskID = int(result[0])
             return new_task
@@ -137,12 +137,12 @@ class SQLiteConn:
     
     # toggle the completion status of an entry
     def toggle_entry_completion(self, taskID):
-        query = "SELECT isComplete FROM tasks WHERE taskID = ?"
+        query = "SELECT is_complete FROM tasks WHERE taskID = ?"
         self.cursor.execute(query, (taskID,))
         result = self.cursor.fetchone()
         if result:
-            isComplete = not result[0]
-            query = "UPDATE tasks SET isComplete = ? WHERE taskID = ?"
-            self.execute(query, (isComplete, taskID))
+            is_complete = not result[0]
+            query = "UPDATE tasks SET is_complete = ? WHERE taskID = ?"
+            self.execute(query, (is_complete, taskID))
         else:
             print(f"No entry found with taskID: {taskID}")

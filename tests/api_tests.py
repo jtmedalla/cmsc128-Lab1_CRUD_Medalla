@@ -22,7 +22,7 @@ def test_add_entry():
         "2024-06-01",
         task.Priority.HIGH,
         "Test Category",
-        "Test Description",
+        "Test details",
         False
     )
 
@@ -32,8 +32,8 @@ def test_add_entry():
         task1.dateDue,
         task1.priority,
         task1.category,
-        task1.description,
-        task1.isComplete
+        task1.details,
+        task1.is_complete
     )
 
     db.cursor.execute("SELECT * FROM tasks WHERE taskID = ?", (task1.taskID,))
@@ -45,8 +45,8 @@ def test_add_entry():
     assert result[3] == task1.dateDue
     assert result[4] == task1.priority.value
     assert result[5] == task1.category
-    assert result[6] == task1.description
-    assert result[7] == int(task1.isComplete)
+    assert result[6] == task1.details
+    assert result[7] == int(task1.is_complete)
 
     db.close()
 
@@ -61,7 +61,7 @@ def test_remove_entry():
         "2024-06-01",
         task.Priority.HIGH,
         "Test Category",
-        "Test Description",
+        "Test details",
         False
     )
 
@@ -71,8 +71,8 @@ def test_remove_entry():
         task1.dateDue,
         task1.priority,
         task1.category,
-        task1.description,
-        task1.isComplete
+        task1.details,
+        task1.is_complete
     )
 
     db.cursor.execute("SELECT * FROM tasks WHERE taskID = ?", (task1.taskID,))
@@ -97,7 +97,7 @@ def test_update_entry():
         "2024-06-01",
         task.Priority.HIGH,
         "Test Category",
-        "Test Description",
+        "Test details",
         False
     )
 
@@ -107,8 +107,8 @@ def test_update_entry():
         task1.dateDue,
         task1.priority,
         task1.category,
-        task1.description,
-        task1.isComplete
+        task1.details,
+        task1.is_complete
     )
 
     new_title = "Updated Task"
@@ -116,7 +116,7 @@ def test_update_entry():
     new_date_due = "2024-06-02"
     new_priority = task.Priority.LOW
     new_category = "Updated Category"
-    new_description = "Updated Description"
+    new_details = "Updated details"
     new_completion = True
 
     db.update_entry(
@@ -126,7 +126,7 @@ def test_update_entry():
         dateDue=new_date_due,
         priority=new_priority,
         category=new_category,
-        description=new_description,
+        details=new_details,
         completion=new_completion
     )
 
@@ -139,7 +139,7 @@ def test_update_entry():
     assert updated_result[3] == new_date_due
     assert updated_result[4] == new_priority.value
     assert updated_result[5] == new_category
-    assert updated_result[6] == new_description
+    assert updated_result[6] == new_details
     assert updated_result[7] == int(new_completion)
 
     db.close()
@@ -155,7 +155,7 @@ def test_fetch_all_entries():
         "2024-06-01",
         task.Priority.HIGH,
         "Test Category 1",
-        "Test Description 1",
+        "Test details 1",
         False
     )
     task2 = task.Task(
@@ -164,17 +164,17 @@ def test_fetch_all_entries():
         "2024-06-02",
         task.Priority.LOW,
         "Test Category 2",
-        "Test Description 2",
+        "Test details 2",
         False
     )
 
     task1.taskID = db.add_entry(
         task1.title, task1.dateAdded, task1.dateDue, task1.priority,
-        task1.category, task1.description, task1.isComplete
+        task1.category, task1.details, task1.is_complete
     )
     task2.taskID = db.add_entry(
         task2.title, task2.dateAdded, task2.dateDue, task2.priority,
-        task2.category, task2.description, task2.isComplete
+        task2.category, task2.details, task2.is_complete
     )
 
     results = db.fetch_all_entries()
@@ -196,7 +196,7 @@ def test_fetch_entry_by_id():
         "2024-06-01",
         task.Priority.HIGH,
         "Test Category",
-        "Test Description",
+        "Test details",
         False
     )
 
@@ -206,8 +206,8 @@ def test_fetch_entry_by_id():
         task1.dateDue,
         task1.priority,
         task1.category,
-        task1.description,
-        task1.isComplete
+        task1.details,
+        task1.is_complete
     )
 
     fetched_result = db.fetch_entry_by_id(task1.taskID)
@@ -219,7 +219,7 @@ def test_fetch_entry_by_id():
     assert fetched_result.dateDue == task1.dateDue
     assert fetched_result.priority == task1.priority.value
     assert fetched_result.category == task1.category
-    assert fetched_result.description == task1.description
+    assert fetched_result.details == task1.details
 
     db.close()
 
@@ -234,7 +234,7 @@ def test_toggle_completion():
         "2024-06-01",
         task.Priority.HIGH,
         "Test Category",
-        "Test Description",
+        "Test details",
         False
     )
 
@@ -244,8 +244,8 @@ def test_toggle_completion():
         task1.dateDue,
         task1.priority,
         task1.category,
-        task1.description,
-        task1.isComplete
+        task1.details,
+        task1.is_complete
     )
 
     db.cursor.execute("SELECT * FROM tasks WHERE taskID = ?", (task1.taskID,))
