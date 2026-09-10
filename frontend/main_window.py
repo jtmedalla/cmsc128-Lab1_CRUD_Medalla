@@ -5,11 +5,13 @@ from tkinter import messagebox, ttk
 from tkcalendar import DateEntry
 
 from api.sqlite3_api import SQLiteConn
+from data import task as task_model
 from frontend.task_entry import TaskCard
 
 
 class MainWindow(tk.Tk):
     def __init__(self):
+        # initialize the main window
         super().__init__()
         self.title("ToDo List Application")
         self.geometry("600x720")
@@ -19,9 +21,15 @@ class MainWindow(tk.Tk):
         self.db.open()
         self.filter_controls = {}
 
+        # grab the tasks from the database and store them in a local variable
+        self.tasks = self.db.fetch_all_entries() or []
+
+        self.task_cards = {}
+
         self.initialize_display()
 
     def initialize_display(self):
+        # decorate the main window with buttons and tabs upon opening
         self.rowconfigure(0, weight=1)
         self.rowconfigure(1, weight=20)
         self.columnconfigure(0, weight=1)
@@ -32,6 +40,8 @@ class MainWindow(tk.Tk):
             text="Add Task",
             command=self.add_task
         )
+
+        # used for the tab separation of ongoing and completed tasks
         tab_control = ttk.Notebook(self)
 
         self.ongoing_tab = ttk.Frame(tab_control)
@@ -68,11 +78,14 @@ class MainWindow(tk.Tk):
 
         self.categorize_tasks()
 
+    # for creating the filter and sort options for the tasks
     def create_task_filters(self, parent, completed):
         parent.columnconfigure(1, weight=1)
         parent.rowconfigure(3, weight=1)
 
-        tasks = self.db.fetch_all_entries() or []
+        # store all the entries from the database to a local variable
+        tasks = self.tasks
+
         tags = sorted({
             current_task.category
             for current_task in tasks
@@ -102,7 +115,7 @@ class MainWindow(tk.Tk):
             values=["All Priorities", "LOW", "MED", "HIGH"],
             state="readonly"
         )
-        priority_filter.current(0)
+        priority_filter.current(0)  # set default selection to "All Priorities"
         priority_filter.grid(
             row=1, column=1, padx=10, pady=10, sticky="ew"
         )
@@ -122,11 +135,12 @@ class MainWindow(tk.Tk):
             ],
             state="readonly"
         )
-        sort_dropdown.current(0)
+        sort_dropdown.current(1) # set default value to "Date Due"
         sort_dropdown.grid(
             row=2, column=1, padx=10, pady=10, sticky="ew"
         )
 
+        # store the filter controls for later use
         self.filter_controls[parent] = (
             tag_filter,
             priority_filter,
@@ -134,6 +148,7 @@ class MainWindow(tk.Tk):
             completed
         )
 
+        # bind the filter and sort controls to the refresh_tasks method
         tag_filter.bind(
             "<<ComboboxSelected>>",
             lambda event: self.refresh_tasks(parent)
@@ -147,19 +162,22 @@ class MainWindow(tk.Tk):
             lambda event: self.refresh_tasks(parent)
         )
 
-        scroll_frame = ttk.Frame(parent)
+        # frame containing the tasks with a scrollbar for navigation
+        scroll_frame = tk.Frame(parent, highlightthickness=1, highlightbackground="black")
         scroll_frame.grid(
             row=3,
             column=0,
             columnspan=2,
             padx=10,
             pady=10,
-            sticky="nsew"
+            sticky="nsew",
+            
         )
         scroll_frame.columnconfigure(0, weight=1)
         scroll_frame.rowconfigure(0, weight=1)
 
-        canvas = tk.Canvas(scroll_frame, highlightthickness=1, highlightbackground="black")
+        # create a canvas and a scrollbar for the scroll frame
+        canvas = tk.Canvas(scroll_frame, )
         scrollbar = ttk.Scrollbar(
             scroll_frame,
             orient="vertical",
@@ -167,6 +185,7 @@ class MainWindow(tk.Tk):
         )
         task_frame = ttk.Frame(canvas)
 
+        # bind the canvas and scrollbar to the task frame for scrolling functionality
         task_frame.bind(
             "<Configure>",
             lambda event: canvas.configure(
@@ -174,12 +193,14 @@ class MainWindow(tk.Tk):
             )
         )
 
+        # create a window inside the canvas to hold the task frame
         canvas_window = canvas.create_window(
             (0, 0),
             window=task_frame,
             anchor="nw"
         )
 
+        # bind the canvas to the scrollbar for scrolling functionality
         canvas.bind(
             "<Configure>",
             lambda event: canvas.itemconfigure(
@@ -188,30 +209,39 @@ class MainWindow(tk.Tk):
             )
         )
 
+        # configure the scrollbar to update the canvas view when scrolled
         canvas.configure(yscrollcommand=scrollbar.set)
 
+        # place the canvas and scrollbar in the scroll frame using grid layout
         canvas.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
 
         return task_frame
 
     def categorize_tasks(self):
+        # categorize the tasks according to their completion status and refresh the display
         self.refresh_tasks(self.ongoing_tab)
         self.refresh_tasks(self.completed_tab)
 
+    # used to refresh the display of tasks based on the selected filters and sorting options
     def refresh_tasks(self, parent):
+        
         tag_filter, priority_filter, sort_dropdown, completed = (
             self.filter_controls[parent]
         )
 
-        tasks = self.db.fetch_all_entries() or []
-
+        # filter tasks based on their completion status
         tasks = [
             current_task
-            for current_task in tasks
-            if current_task.is_complete == completed
+            for current_task in self.tasks
+            if bool(getattr(
+                current_task,
+                "is_complete",
+                getattr(current_task, "is_complete", False)
+            )) == completed
         ]
 
+        # filter tasks based on the selected tag and priority
         selected_tag = tag_filter.get()
         if selected_tag != "All Tags":
             tasks = [
@@ -220,29 +250,36 @@ class MainWindow(tk.Tk):
                 if current_task.category == selected_tag
             ]
 
+        # filter tasks based on the selected priority
         selected_priority = priority_filter.get()
         if selected_priority != "All Priorities":
             tasks = [
                 current_task
                 for current_task in tasks
-                if getattr(
-                    current_task.priority,
-                    "name",
-                    str(current_task.priority)
+                # check if the priority attribute has a name attribute (for Enum) or use a mapping for integer values
+                # TODO: refactor this to be more consistent in using enums or integers for priority representation
+                if (
+                    current_task.priority.name
+                    if hasattr(current_task.priority, "name")
+                    else {
+                        0: "LOW",
+                        1: "MED",
+                        2: "HIGH"
+                    }.get(
+                        self.priority_sort_value(current_task.priority)
+                    )
                 ) == selected_priority
             ]
 
+        # sort the tasks based on the selected sorting option
         sort_option = sort_dropdown.get()
-
         if sort_option == "Date Added":
             tasks.sort(key=lambda current_task: current_task.dateAdded)
         elif sort_option == "Date Due":
             tasks.sort(key=lambda current_task: current_task.dateDue)
         elif sort_option == "Priority":
             tasks.sort(
-                key=lambda current_task: getattr(
-                    current_task.priority,
-                    "value",
+                key=lambda current_task: self.priority_sort_value(
                     current_task.priority
                 )
             )
@@ -256,53 +293,82 @@ class MainWindow(tk.Tk):
                 reverse=True
             )
 
+        # determine which task frame to display the tasks in based on the parent tab
         task_frame = (
             self.ongoing_tasks_frame
             if parent == self.ongoing_tab
             else self.completed_tasks_frame
         )
 
+        # display the filtered and sorted tasks in the appropriate task frame
         self.display_tasks(task_frame, tasks)
 
-    def display_tasks(self, parent, tasks):
-        for widget in parent.winfo_children():
-            widget.destroy()
+    def update_filter_values(self):
+        tags = sorted({
+            current_task.category
+            for current_task in self.tasks
+            if current_task.category
+        })
 
-        parent.columnconfigure(0, weight=1)
+        for tag_filter, _, _, _ in self.filter_controls.values():
+            current_tag = tag_filter.get()
+            tag_filter["values"] = ["All Tags", *tags]
+
+            if current_tag in tag_filter["values"]:
+                tag_filter.set(current_tag)
+            else:
+                tag_filter.current(0)
+
+    def task_changed(self, changed_card):
+        for current_task in self.tasks:
+            if current_task.taskID == changed_card.id:
+                current_task.title = changed_card.title
+                current_task.dateDue = changed_card.dateDue
+                current_task.priority = changed_card.priority
+                current_task.category = changed_card.category
+                current_task.details = changed_card.details
+                current_task.is_complete = changed_card.completion
+                break
+
+        self.update_filter_values()
+        self.categorize_tasks()
+
+
+    def display_tasks(self, parent, tasks):
+        # Keep cards separate for ongoing and completed tabs.
+        card_group = self.task_cards.setdefault(parent, {})
+
+        visible_ids = {
+            current_task.taskID
+            for current_task in tasks
+        }
+
+        for task_id, card in card_group.items():
+            if task_id not in visible_ids:
+                card.grid_remove()
 
         for row, current_task in enumerate(tasks):
-            completion = getattr(
-                current_task,
-                "is_complete",
-                getattr(current_task, "is_complete", False)
-            )
+            task_id = current_task.taskID
+            card = card_group.get(task_id)
 
-            match current_task.priority:
-                case 0:
-                    priority_text = "LOW"
-                case 1:
-                    priority_text = "MED"
-                case 2:
-                    priority_text = "HIGH"
-                case _:
-                    raise RuntimeError(f"Invalid priority value: {current_task.priority}")
+            if card is None or not card.winfo_exists():
+                card = TaskCard(
+                    parent,
+                    id=task_id,
+                    title=current_task.title,
+                    dateAdded=current_task.dateAdded,
+                    dateDue=current_task.dateDue,
+                    priority=current_task.priority,
+                    category=current_task.category,
+                    details=current_task.details,
+                    completion=current_task.is_complete,
+                    db=self.db,
+                    on_change=self.task_changed,
+                    on_delete=self.show_undo_toast
+                )
+                card_group[task_id] = card
 
-            task_card = TaskCard(
-                parent,
-                id=current_task.taskID,
-                title=current_task.title,
-                dateAdded=current_task.dateAdded,
-                dateDue=current_task.dateDue,
-                priority=priority_text,
-                category=current_task.category,
-                details=current_task.details,
-                completion=completion,
-                db=self.db,
-                on_change=self.categorize_tasks,
-                on_delete=self.show_undo_toast
-            )
-
-            task_card.grid(
+            card.grid(
                 row=row,
                 column=0,
                 padx=10,
@@ -311,6 +377,7 @@ class MainWindow(tk.Tk):
             )
 
     def add_task(self):
+        # create a pop-up menu for adding a new task
         dialog = tk.Toplevel(self)
         dialog.title("Add Task")
         dialog.transient(self)
@@ -318,6 +385,7 @@ class MainWindow(tk.Tk):
 
         fields = {}
 
+        # display the fields for the task attributes in the pop-up menu
         for row, label in enumerate(
             ["Title", "Date Due", "Category", "Details"]
         ):
@@ -336,7 +404,7 @@ class MainWindow(tk.Tk):
                     dialog,
                     width=33,
                     date_pattern="yyyy-mm-dd",
-                    mindate=date.today()
+                    mindate=date.datetime.now(tz=...).date()
                 )
             else:
                 widget = ttk.Entry(dialog, width=35)
@@ -374,9 +442,10 @@ class MainWindow(tk.Tk):
             sticky="ew"
         )
 
+        # run when the user selects "Save Task"
         def save_task():
             title = fields["Title"].get().strip()
-            date_added = date.today().isoformat()
+            date_added = date.now(tz=...).isoformat()
             date_due = fields["Date Due"].get_date().isoformat()
             category = fields["Category"].get().strip()
             details = fields["Details"].get("1.0", tk.END).strip()
@@ -395,7 +464,17 @@ class MainWindow(tk.Tk):
                 "HIGH": 2
             }[priority_box.get()]
 
-            self.db.add_entry(
+            new_task = task_model.Task(
+                title,
+                date_added,
+                date_due,
+                task_model.Priority(priority),
+                category,
+                details,
+                False
+            )
+
+            new_task.taskID = self.db.add_entry(
                 title=title,
                 dateAdded=date_added,
                 dateDue=date_due,
@@ -404,6 +483,9 @@ class MainWindow(tk.Tk):
                 details=details,
                 completion=False
             )
+
+            self.tasks.append(new_task)
+            self.update_filter_values()
 
             dialog.destroy()
             self.categorize_tasks()
@@ -480,8 +562,17 @@ class MainWindow(tk.Tk):
             self.close_undo_toast
         )
 
+        self.tasks = [
+            current_task
+            for current_task in self.tasks
+            if current_task.taskID != deleted_task["id"]
+        ]
+
+        self.update_filter_values()
+        self.categorize_tasks()
+
     def undo_delete(self, deleted_task):
-        self.db.add_entry(
+        task_id = self.db.add_entry(
             title=deleted_task["title"],
             dateAdded=deleted_task["dateAdded"],
             dateDue=deleted_task["dateDue"],
@@ -491,6 +582,19 @@ class MainWindow(tk.Tk):
             completion=deleted_task["completion"]
         )
 
+        restored_task = task_model.Task(
+            deleted_task["title"],
+            deleted_task["dateAdded"],
+            deleted_task["dateDue"],
+            task_model.Priority(deleted_task["priority"]),
+            deleted_task["category"],
+            deleted_task["details"],
+            deleted_task["completion"]
+        )
+        restored_task.taskID = task_id
+        self.tasks.append(restored_task)
+
+        self.update_filter_values()
         self.close_undo_toast()
         self.categorize_tasks()
 
@@ -502,5 +606,17 @@ class MainWindow(tk.Tk):
             self.after_cancel(self.undo_after_id)
             del self.undo_after_id
 
-        self.categorize_tasks()
+    # used to get the value of the priority for sorting purposes, regardless of whether it's an Enum or an integer
+    # TODO: refactor code in the future to be more consistent in using enums or integers for priority representation
+    @staticmethod
+    def priority_sort_value(priority):
+        value = getattr(priority, "value", priority)
 
+        if isinstance(value, str):
+            return {
+                "LOW": 0,
+                "MED": 1,
+                "HIGH": 2
+            }.get(value.upper(), 0)
+
+        return int(value)

@@ -107,14 +107,20 @@ class TaskCard(tk.Frame):
         self.delete_button = tk.Button(
             self,
             text="Delete",
-            command=self.delete_task
+            command=self.delete_task,
+            background="#8b0000",
+            foreground="white",
+            activebackground="#ff0000",
+            activeforeground="white"
         )
         self.delete_button.grid(row=1, column=2, padx=5, pady=8)
 
         self.complete_button = tk.Button(
             self,
             text="Mark Ongoing" if self.completion else "Mark Complete",
-            command=self.mark_complete
+            command=self.mark_complete,
+            background="#006400" if not self.completion else "#FFA500",
+            activebackground="#4CAF50" if not self.completion else "#FFA500",
         )
         self.complete_button.grid(row=2, column=2, padx=5, pady=8)
 
@@ -336,13 +342,15 @@ class TaskCard(tk.Frame):
     def delete_task(self):
         confirmed = messagebox.askyesno(
             "Delete Task",
-            "Are you sure you want to delete this task?"
+            "Are you sure you want to delete this task?",
+            parent=self.winfo_toplevel()
         )
 
         if not confirmed:
             return
 
         deleted_task = {
+            "id": self.id,
             "title": self.title,
             "dateAdded": self.dateAdded,
             "dateDue": self.dateDue,
@@ -361,6 +369,7 @@ class TaskCard(tk.Frame):
 
     def mark_complete(self):
         self.db.toggle_entry_completion(self.id)
+        self.completion = not self.completion
 
         if self.on_change:
-            self.on_change()
+            self.on_change(self)

@@ -104,7 +104,7 @@ class SQLiteConn:
                 row[1],  # title
                 row[2],  # dateAdded
                 row[3],  # dateDue
-                int(row[4]),  # priority
+                row[4],  # priority
                 row[5],  # category
                 row[6],  # details
                 bool(row[7])  # is_complete
