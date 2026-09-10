@@ -87,3 +87,4 @@ CRUD operations are done through the `SQLiteConn` class in `api/sqlite3_api.py`.
 
 ![Filtering Tasks](screenshots/filtered.png)
 
+cmsc128-Indiv-Act1-finalX

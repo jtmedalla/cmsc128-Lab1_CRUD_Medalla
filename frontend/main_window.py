@@ -303,6 +303,7 @@ class MainWindow(tk.Tk):
         # display the filtered and sorted tasks in the appropriate task frame
         self.display_tasks(task_frame, tasks)
 
+    # used to update the values of the tag filter dropdown based on the current categories of the tasks in the database
     def update_filter_values(self):
         tags = sorted({
             current_task.category
@@ -319,6 +320,7 @@ class MainWindow(tk.Tk):
             else:
                 tag_filter.current(0)
 
+    # updates tasks stored in runtime the refreshes display
     def task_changed(self, changed_card):
         for current_task in self.tasks:
             if current_task.taskID == changed_card.id:
@@ -335,7 +337,7 @@ class MainWindow(tk.Tk):
 
 
     def display_tasks(self, parent, tasks):
-        # Keep cards separate for ongoing and completed tabs.
+        # keep cards separate for ongoing and completed tabs.
         card_group = self.task_cards.setdefault(parent, {})
 
         visible_ids = {
