@@ -61,5 +61,29 @@ python main.py
 ```
 
 **Example "API endpoints" or data operations (however your stack exposes CRUD — REST routes, Firestore calls, local DB queries, etc.)**
+CRUD operations are done through the `SQLiteConn` class in `api/sqlite3_api.py`. The following methods are available for use:
+
+- open() - Used to open the database connection. Automatically creates the database file if it does not exist.
+- close() - Used to close the database connection.
+- execute(query, params=None) - Used to execute a SQL query as string with optional parameters.
+- add_entry(title, dateAdded, dateDue, priority, category, details, completion=False) - Used to add a new task entry to the database. Returns the id that the database assigned the entry
+- remove_entry(taskID) - Used to remove a task entry from the database by its id.
+- update_entry(taskID, title=None, dateAdded=None, dateDue=None, priority=None, category=None, details=None, completion=None) - Used to update a task entry in the database by its id.
+- fetch_all_entries() - Used to fetch all task entries from the database. Returns a list of Task objects. or None if there are no entries in the database.
+- fetch_entry_by_id(taskID) - Used to fetch a task entry from the database by its id. Returns a Task object or None if the entry does not exist.
+- toggle_entry_completion(taskID) - Used to toggle the completion status of a task entry in the database by its id.
 
 **Screenshots of the working app**
+
+
+![When opening the app](screenshots/ongoing.png)
+
+
+![Completed tasks tab](screenshots/completed.png)
+
+
+![Adding dates via a calendar](screenshots/date-picker.png)
+
+
+![Filtering Tasks](screenshots/filtered.png)
+
