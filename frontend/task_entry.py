@@ -323,7 +323,7 @@ class TaskCard(tk.Frame):
             editor.destroy()
 
             if self.on_change:
-                self.on_change()
+                self.on_change(self)
 
         tk.Button(
             editor,
