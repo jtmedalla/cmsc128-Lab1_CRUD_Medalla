@@ -14,22 +14,24 @@ class Priority(Enum):
 class Task:
     taskID = 0
     title = ""
-    date = datetime.datetime.now(tz=ZoneInfo("Asia/Manila"))
+    dateAdded = datetime.datetime.now(tz=ZoneInfo("Asia/Manila"))
+    dateDue = datetime.datetime.now(tz=ZoneInfo("Asia/Manila"))
     priority = Priority.LOW
     category = ""
     description = "" 
     is_complete = False
 
-    def __init__(self, title, date, priority, category, description, completion=False):
+    def __init__(self, title, dateAdded, dateDue, priority, category, description, completion=False):
         self.title = title
-        self.date = date
+        self.dateAdded = dateAdded
+        self.dateDue = dateDue
         self.priority = priority
         self.category = category
         self.description = description
         self.isComplete = completion
 
     def __str__(self):
-        return f"Task ID: {self.taskID}\nTitle: {self.title}\nDate: {self.date}\nPriority: {self.priority.name}\nCategory: {self.category}\nDescription: {self.description}\nCompleted: {self.isComplete}"
+        return f"Task ID: {self.taskID}\nTitle: {self.title}\nDate Added: {self.dateAdded}\nDate Due: {self.dateDue}\nPriority: {self.priority.name}\nCategory: {self.category}\nDescription: {self.description}\nCompleted: {self.isComplete}"
 
     # setters
     def edit_taskID(self, new_taskID):
@@ -47,8 +49,11 @@ class Task:
     def edit_description(self, new_description):
         self.description = new_description
 
-    def edit_date(self, new_date):
-        self.date = new_date
+    def edit_dateAdded(self, new_date):
+        self.dateAdded = new_date
+
+    def edit_dateDue(self, new_date):
+        self.dateDue = new_date
 
     def toggle_completion(self):
         self.isComplete = self.isComplete is True if False else True
