@@ -1,6 +1,8 @@
-import data.task as task
 import os
 import sqlite3
+
+from data import task
+
 
 class SQLiteConn:
 
@@ -17,7 +19,8 @@ class SQLiteConn:
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS tasks (
                                 taskID INTEGER PRIMARY KEY AUTOINCREMENT,
                                 title TEXT NOT NULL,
-                                date TEXT NOT NULL,
+                                dateAdded TEXT NOT NULL,
+                                dateDue TEXT NOT NULL,
                                 priority INTEGER NOT NULL,
                                 category TEXT NOT NULL,
                                 description TEXT NOT NULL,
@@ -41,9 +44,10 @@ class SQLiteConn:
         self.conn.commit()
 
     # add an entry to the database
-    def add_entry(self, title, date, priority, category, description, completion=False):
-        query = "INSERT INTO tasks (title, date, priority, category, description, isComplete) VALUES (?, ?, ?, ?, ?, ?)"
-        params = (title, date, priority.value, category, description, int(completion))
+    def add_entry(self, title, dateAdded, dateDue, priority, category, description, completion=False):
+        query = "INSERT INTO tasks (title, dateAdded, dateDue, priority, category, description, isComplete) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        priority_value = getattr(priority, "value", priority)
+        params = (title, dateAdded, dateDue, priority_value, category, description, int(completion))
         self.execute(query, params)
 
         # return the id to assign to Task object based on database increments
@@ -59,18 +63,21 @@ class SQLiteConn:
         self.execute(query, params)
 
     # update an entry in the database
-    def update_entry(self, taskID, title=None, date=None, priority=None, category=None, description=None, completion=None):
+    def update_entry(self, taskID, title=None, dateAdded=None, dateDue=None, priority=None, category=None, description=None, completion=None):
         query = "UPDATE tasks SET "
         params = []
         if title is not None:
             query += "title = ?, "
             params.append(title)
-        if date is not None:
-            query += "date = ?, "
-            params.append(date)
+        if dateAdded is not None:
+            query += "dateAdded = ?, "
+            params.append(dateAdded)
+        if dateDue is not None:
+            query += "dateDue = ?, "
+            params.append(dateDue)
         if priority is not None:
             query += "priority = ?, "
-            params.append(priority.value)
+            params.append(getattr(priority, "value", priority))
         if category is not None:
             query += "category = ?, "
             params.append(category)
@@ -93,21 +100,17 @@ class SQLiteConn:
         results = []
 
         for row in self.cursor.fetchall():
-            converted = []
-            converted.append(int(row[0]))   # Convert taskID to int
-            converted.append(row[1])        # Keep title as is
-            converted.append(row[2])        # Keep date as is
-            converted.append(int(row[3]))   # Convert priority to int
-            converted.append(row[4])        # Keep category as is
-            converted.append(row[5])        # Keep description as is
-            converted.append(bool(row[6]))  # Convert isComplete to bool
-
-            newTask = task.Task(converted[1], converted[2], converted[3], converted[4], converted[5], converted[6])
-
-            # Set the taskID for the Task object
-            newTask.taskID = converted[0]  
-
-            results.append(newTask)
+            new_task = task.Task(
+                row[1],  # title
+                row[2],  # dateAdded
+                row[3],  # dateDue
+                int(row[4]),  # priority
+                row[5],  # category
+                row[6],  # description
+                bool(row[7])  # isComplete
+            )
+            new_task.taskID = int(row[0])
+            results.append(new_task)
 
         return results if results else None
 
@@ -118,17 +121,19 @@ class SQLiteConn:
 
         result = self.cursor.fetchone()
         if result:
-            result = list(result)
-            result[0] = int(result[0])      # Convert taskID to int
-            result[3] = int(result[3])      # Convert priority to int
-            result[6] = bool(result[6])     # Convert isComplete to bool
+            new_task = task.Task(
+                result[1],  # title
+                result[2],  # dateAdded
+                result[3],  # dateDue
+                int(result[4]),  # priority
+                result[5],  # category
+                result[6],  # description
+                bool(result[7])  # isComplete
+            )
+            new_task.taskID = int(result[0])
+            return new_task
 
-            newTask = task.Task(result[1], result[2], result[3], result[4], result[5], result[6])
-            newTask.taskID = result[0]  # Set the taskID for the Task object
-
-            return newTask
-        else:
-            return None
+        return None
     
     # toggle the completion status of an entry
     def toggle_entry_completion(self, taskID):
