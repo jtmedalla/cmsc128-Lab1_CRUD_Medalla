@@ -1,5 +1,5 @@
 import tkinter as tk
-from datetime import date
+from datetime import date, datetime
 from tkinter import messagebox, ttk
 
 from tkcalendar import DateEntry
@@ -281,7 +281,7 @@ class MainWindow(tk.Tk):
             tasks.sort(
                 key=lambda current_task: self.priority_sort_value(
                     current_task.priority
-                )
+                ), reverse=True
             )
         elif sort_option == "Tag (A-Z)":
             tasks.sort(
@@ -404,7 +404,7 @@ class MainWindow(tk.Tk):
                     dialog,
                     width=33,
                     date_pattern="yyyy-mm-dd",
-                    mindate=date.datetime.now(tz=...).date()
+                    mindate=date.today()
                 )
             else:
                 widget = ttk.Entry(dialog, width=35)
@@ -445,7 +445,7 @@ class MainWindow(tk.Tk):
         # run when the user selects "Save Task"
         def save_task():
             title = fields["Title"].get().strip()
-            date_added = date.now(tz=...).isoformat()
+            date_added = date.today().isoformat()
             date_due = fields["Date Due"].get_date().isoformat()
             category = fields["Category"].get().strip()
             details = fields["Details"].get("1.0", tk.END).strip()
@@ -586,7 +586,7 @@ class MainWindow(tk.Tk):
             deleted_task["title"],
             deleted_task["dateAdded"],
             deleted_task["dateDue"],
-            task_model.Priority(deleted_task["priority"]),
+            deleted_task["priority"],
             deleted_task["category"],
             deleted_task["details"],
             deleted_task["completion"]
