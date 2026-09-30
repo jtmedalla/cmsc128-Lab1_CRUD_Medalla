@@ -1,8 +1,14 @@
+import hashlib
 import os
+import secrets
 import sqlite3
+import time
+from pathlib import Path
+
 import bcrypt
 
 from data import task
+
 
 def get_pw_hash(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
@@ -39,6 +45,15 @@ class SQLiteConn:
                                 user_id INTEGER NOT NULL,
                                 FOREIGN KEY (user_id) REFERENCES users(userID)
                             )''')
+        
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS sessions (
+                                sessionID INTEGER PRIMARY KEY AUTOINCREMENT,
+                                user_id INTEGER NOT NULL,
+                                token_hash TEXT NOT NULL UNIQUE,
+                                expires_at INTEGER NOT NULL,
+                                FOREIGN KEY (user_id) REFERENCES users(userID)
+                            )''')
+        
         
         self.conn.commit()
 
@@ -182,15 +197,69 @@ class SQLiteConn:
         self.execute(query, params)
         return True
 
-    def user_login(self, username, password):
-        query = "SELECT * FROM users WHERE username = ?"
-        params = (username,)
-        self.cursor.execute(query, params)
+    def authenticate_user(self, username, password):
+        self.cursor.execute(
+            "SELECT userID, password FROM users WHERE username = ?",
+            (username,)
+        )
+
         result = self.cursor.fetchone()
 
-        if result:
-            stored_hashed_pw = result[2]
-            if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_pw):
-                return True
-            
-        return False
+        if result and bcrypt.checkpw(
+            password.encode("utf-8"),
+            result[1]
+        ):
+            return result[0]  # userID
+
+        return None
+
+    
+    def create_session(self, user_id):
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+        # Session lasts 30 days
+        expires_at = int(time.time()) + (30 * 24 * 60 * 60)
+
+        self.execute(
+            "INSERT INTO sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+            (user_id, token_hash, expires_at)
+        )
+
+        session_file = Path(__file__).parent / "../data/.todo_session"
+        session_file.write_text(token)
+        session_file.chmod(0o600)
+
+        return token
+
+    def restore_session(self):
+        session_file = Path(__file__).parent / "../data/.todo_session"
+
+        if not session_file.exists():
+            return None
+
+        token = session_file.read_text().strip()
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+        self.cursor.execute(
+            """SELECT user_id FROM sessions
+                WHERE token_hash = ? AND expires_at > ?""",
+            (token_hash, int(time.time()))
+        )
+
+        result = self.cursor.fetchone()
+        return result[0] if result else None
+
+    def logout(self):
+        session_file = Path(__file__).parent / "../data/.todo_session"
+
+        if session_file.exists():
+            token = session_file.read_text().strip()
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+            self.execute(
+                "DELETE FROM sessions WHERE token_hash = ?",
+                (token_hash,)
+            )
+
+            session_file.unlink()
