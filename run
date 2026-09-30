@@ -1,0 +1,8 @@
+# activate the virtual environment
+source .venv/bin/activate
+
+# build the UI components
+frontend/build_ui.sh
+
+# run main.py
+python3 main.py
