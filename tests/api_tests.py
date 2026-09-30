@@ -20,7 +20,7 @@ def create_test_owner(db):
     return db.cursor.fetchone()[0]
 
 
-def add_test_task(db, task_obj, owner_id):
+def add_test_task(db, task_obj, user_id):
     return db.add_entry(
         task_obj.title,
         task_obj.dateAdded,
@@ -29,7 +29,7 @@ def add_test_task(db, task_obj, owner_id):
         task_obj.category,
         task_obj.details,
         task_obj.is_complete,
-        owner_id
+        user_id
     )
 
 
@@ -88,7 +88,7 @@ def test_user_login():
 def test_add_entry():
     db = sqlite3_api.SQLiteConn()
     db.open()
-    owner_id = create_test_owner(db)
+    user_id = create_test_owner(db)
 
     task1 = task.Task(
         "Test Task",
@@ -100,11 +100,11 @@ def test_add_entry():
         False
     )
 
-    task1.taskID = add_test_task(db, task1, owner_id)
+    task1.taskID = add_test_task(db, task1, user_id)
 
     db.cursor.execute(
-        "SELECT * FROM tasks WHERE taskID = ? AND owner_id = ?",
-        (task1.taskID, owner_id,)
+        "SELECT * FROM tasks WHERE taskID = ? AND user_id = ?",
+        (task1.taskID, user_id,)
     )
     result = db.cursor.fetchone()
 
@@ -116,7 +116,7 @@ def test_add_entry():
     assert result[5] == task1.category
     assert result[6] == task1.details
     assert result[7] == int(task1.is_complete)
-    assert result[8] == owner_id
+    assert result[8] == user_id
 
     db.close()
 
@@ -144,16 +144,16 @@ def test_remove_entry():
         task1.category,
         task1.details,
         task1.is_complete,
-        task1.owner_id
+        task1.user_id
     )
 
-    db.cursor.execute("SELECT * FROM tasks WHERE taskID = ? AND owner_id = ?", (task1.taskID, task1.owner_id))
+    db.cursor.execute("SELECT * FROM tasks WHERE taskID = ? AND user_id = ?", (task1.taskID, task1.user_id))
     result = db.cursor.fetchone()
     assert result is not None
 
-    db.remove_entry(result[0])
+    db.remove_entry(result[0], task1.user_id)
 
-    db.cursor.execute("SELECT * FROM tasks WHERE taskID = ? AND owner_id = ?", (task1.taskID, task1.owner_id))
+    db.cursor.execute("SELECT * FROM tasks WHERE taskID = ? AND user_id = ?", (task1.taskID, task1.user_id))
     assert db.cursor.fetchone() is None
 
     db.close()
@@ -163,7 +163,7 @@ def test_update_entry():
     db = sqlite3_api.SQLiteConn()
     db.open()
 
-    owner_id = create_test_owner(db)
+    user_id = create_test_owner(db)
 
     task1 = task.Task(
         "Test Task",
@@ -175,7 +175,7 @@ def test_update_entry():
         False
     )
 
-    task1.taskID = add_test_task(db, task1, owner_id)
+    task1.taskID = add_test_task(db, task1, user_id)
 
     new_title = "Updated Task"
     new_date_added = "2024-05-02"
@@ -194,10 +194,10 @@ def test_update_entry():
         category=new_category,
         details=new_details,
         completion=new_completion,
-        owner_id=owner_id
+        user_id=user_id
     )
-    print(task1.taskID, owner_id)
-    db.cursor.execute("SELECT * FROM tasks WHERE taskID = ? AND owner_id = ?", (task1.taskID, owner_id))
+    print(task1.taskID, user_id)
+    db.cursor.execute("SELECT * FROM tasks WHERE taskID = ? AND user_id = ?", (task1.taskID, user_id))
     updated_result = db.cursor.fetchone()
 
     assert updated_result is not None
@@ -208,7 +208,7 @@ def test_update_entry():
     assert updated_result[5] == new_category
     assert updated_result[6] == new_details
     assert updated_result[7] == int(new_completion)
-    assert updated_result[8] == owner_id
+    assert updated_result[8] == user_id
 
     db.close()
 
@@ -217,7 +217,7 @@ def test_fetch_all_entries():
     db = sqlite3_api.SQLiteConn()
     db.open()
 
-    owner_id = create_test_owner(db)
+    user_id = create_test_owner(db)
 
     task1 = task.Task(
         "Test Task 1",
@@ -238,10 +238,10 @@ def test_fetch_all_entries():
         False
     )
 
-    task1.taskID = add_test_task(db, task1, owner_id)
-    task2.taskID = add_test_task(db, task2, owner_id)
+    task1.taskID = add_test_task(db, task1, user_id)
+    task2.taskID = add_test_task(db, task2, user_id)
 
-    results = db.fetch_all_entries()
+    results = db.fetch_all_entries(user_id)
 
     assert len(results) >= 2
     assert task1.taskID in [result.taskID for result in results]
@@ -254,7 +254,7 @@ def test_fetch_entry_by_id():
     db = sqlite3_api.SQLiteConn()
     db.open()
 
-    owner_id = create_test_owner(db)
+    user_id = create_test_owner(db)
 
     task1 = task.Task(
         "Test Task",
@@ -266,9 +266,9 @@ def test_fetch_entry_by_id():
         False
     )
 
-    task1.taskID = add_test_task(db, task1, owner_id)
+    task1.taskID = add_test_task(db, task1, user_id)
 
-    fetched_result = db.fetch_entry_by_id(task1.taskID, owner_id)
+    fetched_result = db.fetch_entry_by_id(task1.taskID, user_id)
 
     assert fetched_result is not None
     assert fetched_result.taskID == task1.taskID
@@ -279,7 +279,7 @@ def test_fetch_entry_by_id():
     assert fetched_result.category == task1.category
     assert fetched_result.details == task1.details
     assert fetched_result.is_complete == task1.is_complete
-    assert fetched_result.owner_id == owner_id
+    assert fetched_result.user_id == user_id
 
     db.close()
 
@@ -288,7 +288,7 @@ def test_toggle_completion():
     db = sqlite3_api.SQLiteConn()
     db.open()
 
-    owner_id = create_test_owner(db)
+    user_id = create_test_owner(db)
 
     task1 = task.Task(
         "Test Task",
@@ -300,14 +300,14 @@ def test_toggle_completion():
         False
     )
 
-    task1.taskID = add_test_task(db, task1, owner_id)
+    task1.taskID = add_test_task(db, task1, user_id)
 
-    db.cursor.execute("SELECT * FROM tasks WHERE taskID = ? AND owner_id = ?", (task1.taskID, owner_id))
+    db.cursor.execute("SELECT * FROM tasks WHERE taskID = ? AND user_id = ?", (task1.taskID, user_id))
     result = db.cursor.fetchone()
     assert result is not None
 
     initial_completion_status = result[7]
-    db.toggle_entry_completion(task1.taskID, owner_id)
+    db.toggle_entry_completion(task1.taskID, user_id)
 
     db.cursor.execute("SELECT * FROM tasks WHERE taskID = ?", (task1.taskID,))
     updated_result = db.cursor.fetchone()
