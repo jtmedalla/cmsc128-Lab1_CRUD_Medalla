@@ -1,4 +1,3 @@
-from operator import add
 import uuid
 
 import bcrypt
@@ -18,6 +17,21 @@ def create_test_owner(db):
         (username,)
     )
     return db.cursor.fetchone()[0]
+
+
+def create_test_session(db):
+    username = f"test_owner_{uuid.uuid4().hex}"
+    password = "test_password"
+
+    assert db.add_user(username, password) is True
+
+    user_id = db.authenticate_user(username, password)
+    assert user_id is not None
+
+    db.create_session(user_id)
+    assert db.restore_session() == user_id
+
+    return user_id
 
 
 def add_test_task(db, task_obj, user_id):
@@ -70,17 +84,13 @@ def test_user_login():
     db = sqlite3_api.SQLiteConn()
     db.open()
 
-    username = "test_user_login"
+    username = f"test_user_{uuid.uuid4().hex}"
     password = "test_password"
-    hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
-    db.cursor.execute("DELETE FROM users WHERE username = ?", (username,))
-    db.conn.commit()
-    db.add_user(username, password)
-
-    assert db.user_login(username, password) is True
-    assert db.user_login(username, "incorrect_password") is False
-    assert db.user_login("unknown_user", hashed_pw) is False
+    assert db.add_user(username, password) is True
+    assert db.authenticate_user(username, password) is not None
+    assert db.authenticate_user(username, "incorrect_password") is None
+    assert db.authenticate_user("unknown_user", password) is None
 
     db.close()
 
@@ -314,5 +324,19 @@ def test_toggle_completion():
 
     assert updated_result is not None
     assert updated_result[7] != initial_completion_status
+
+    db.close()
+
+
+def test_session_lifecycle():
+    db = sqlite3_api.SQLiteConn()
+    db.open()
+
+    user_id = create_test_session(db)
+
+    assert db.restore_session() == user_id
+
+    db.logout()
+    assert db.restore_session() is None
 
     db.close()
