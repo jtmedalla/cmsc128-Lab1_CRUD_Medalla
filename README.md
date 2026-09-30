@@ -72,6 +72,8 @@ CRUD operations are done through the `SQLiteConn` class in `api/sqlite3_api.py`.
 - fetch_all_entries() - Used to fetch all task entries from the database. Returns a list of Task objects. or None if there are no entries in the database.
 - fetch_entry_by_id(taskID) - Used to fetch a task entry from the database by its id. Returns a Task object or None if the entry does not exist.
 - toggle_entry_completion(taskID) - Used to toggle the completion status of a task entry in the database by its id.
+- add_user(username, password) - Used to add a new user to the database. Returns True if the user was added successfully, False if the user already exists.
+- user_login(username, password) - Used to check if a user exists in the database and if the password is correct. Returns True if the user exists and the password is correct, False otherwise.
 
 **Screenshots of the working app**
 
