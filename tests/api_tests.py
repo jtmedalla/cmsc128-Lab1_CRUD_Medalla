@@ -1,6 +1,6 @@
 from api import sqlite3_api
 from data import task
-
+import bcrypt
 
 def test_conn():
     db = sqlite3_api.SQLiteConn()
@@ -260,5 +260,47 @@ def test_toggle_completion():
 
     assert updated_result is not None
     assert updated_result[7] != initial_completion_status
+
+    db.close()
+
+def test_add_user():
+    db = sqlite3_api.SQLiteConn()
+    db.open()
+
+    username = "test_user_add"
+    password = "test_password"
+    bytes_password = password.encode('utf-8')
+
+    db.cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+    db.conn.commit()
+
+    db.add_user(username, password)
+
+    db.cursor.execute(
+        "SELECT username, password FROM users WHERE username = ?",
+        (username,)
+    )
+    result = db.cursor.fetchone()
+
+    assert bcrypt.checkpw(bytes_password, result[1])
+
+    db.close()
+
+
+def test_user_login():
+    db = sqlite3_api.SQLiteConn()
+    db.open()
+
+    username = "test_user_login"
+    password = "test_password"
+    hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+    db.cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+    db.conn.commit()
+    db.add_user(username, password)
+
+    assert db.user_login(username, password) is True
+    assert db.user_login(username, "incorrect_password") is False
+    assert db.user_login("unknown_user", hashed_pw) is False
 
     db.close()
