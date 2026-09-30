@@ -135,6 +135,27 @@
      <string>Sign Up</string>
     </property>
    </widget>
+   <widget class="QLabel" name="lbl_warning">
+    <property name="geometry">
+     <rect>
+      <x>155</x>
+      <y>310</y>
+      <width>301</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Arial Black</family>
+     </font>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignmentFlag::AlignCenter</set>
+    </property>
+   </widget>
    <zorder>lbl_password</zorder>
    <zorder>line_password</zorder>
    <zorder>lbl_title</zorder>
@@ -142,6 +163,7 @@
    <zorder>line_username</zorder>
    <zorder>lbl_username</zorder>
    <zorder>btn_login</zorder>
+   <zorder>lbl_warning</zorder>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
