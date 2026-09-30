@@ -1,5 +1,5 @@
-from enum import Enum
 import datetime
+from enum import Enum
 
 # used for setting specific timezone to Philippines
 from zoneinfo import ZoneInfo
@@ -20,8 +20,9 @@ class Task:
     category = ""
     details = "" 
     is_complete = False
+    owner_id = None
 
-    def __init__(self, title, dateAdded, dateDue, priority, category, details, completion=False):
+    def __init__(self, title, dateAdded, dateDue, priority, category, details, completion=False, owner_id=None):
         self.title = title
         self.dateAdded = dateAdded
         self.dateDue = dateDue
@@ -29,9 +30,10 @@ class Task:
         self.category = category
         self.details = details
         self.is_complete = completion
+        self.owner_id = owner_id
 
     def __str__(self):
-        return f"Task ID: {self.taskID}\nTitle: {self.title}\nDate Added: {self.dateAdded}\nDate Due: {self.dateDue}\nPriority: {self.priority}\nCategory: {self.category}\ndetails: {self.details}\nCompleted: {self.is_complete}"
+        return f"Task ID: {self.taskID}\nTitle: {self.title}\nDate Added: {self.dateAdded}\nDate Due: {self.dateDue}\nPriority: {self.priority}\nCategory: {self.category}\ndetails: {self.details}\nCompleted: {self.is_complete}\nOwner ID: {self.owner_id}"
 
     # setters
     def edit_taskID(self, new_taskID):
@@ -57,3 +59,6 @@ class Task:
 
     def toggle_completion(self):
         self.is_complete = self.is_complete is True if False else True
+
+    def edit_owner_id(self, new_owner_id):
+        self.owner_id = new_owner_id
