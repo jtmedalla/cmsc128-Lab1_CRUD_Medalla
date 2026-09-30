@@ -36,8 +36,8 @@ class SQLiteConn:
                                 category TEXT NOT NULL,
                                 details TEXT NOT NULL,
                                 is_complete BOOLEAN NOT NULL CHECK (is_complete IN (0, 1)),
-                                owner_id INTEGER NOT NULL,
-                                FOREIGN KEY (owner_id) REFERENCES users(userID)
+                                user_id INTEGER NOT NULL,
+                                FOREIGN KEY (user_id) REFERENCES users(userID)
                             )''')
         
         self.conn.commit()
@@ -58,10 +58,10 @@ class SQLiteConn:
         self.conn.commit()
 
     # add an entry to the database
-    def add_entry(self, title, dateAdded, dateDue, priority, category, details, completion=False, owner_id=None):
-        query = "INSERT INTO tasks (title, dateAdded, dateDue, priority, category, details, is_complete, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    def add_entry(self, title, dateAdded, dateDue, priority, category, details, completion=False, user_id=None):
+        query = "INSERT INTO tasks (title, dateAdded, dateDue, priority, category, details, is_complete, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         priority_value = getattr(priority, "value", priority)
-        params = (title, dateAdded, dateDue, priority_value, category, details, int(completion), owner_id)
+        params = (title, dateAdded, dateDue, priority_value, category, details, int(completion), user_id)
         self.execute(query, params)
 
         # return the id to assign to Task object based on database increments
@@ -71,15 +71,15 @@ class SQLiteConn:
         return last_id
 
     # remove an entry from the database
-    def remove_entry(self, taskID):
-        query = "DELETE FROM tasks WHERE taskID = ?"
-        params = (taskID,)
+    def remove_entry(self, taskID, user_id):
+        query = "DELETE FROM tasks WHERE taskID = ? AND user_id = ?"
+        params = (taskID, user_id)
         self.execute(query, params)
 
     # update an entry in the database
-    def update_entry(self, taskID, title=None, dateAdded=None, dateDue=None, priority=None, category=None, details=None, completion=None, owner_id=None):
-        if owner_id is None:
-            raise ValueError("owner_id must be provided to update an entry.")
+    def update_entry(self, taskID, title=None, dateAdded=None, dateDue=None, priority=None, category=None, details=None, completion=None, user_id=None):
+        if user_id is None:
+            raise ValueError("user_id must be provided to update an entry.")
 
         query = "UPDATE tasks SET "
         params = []
@@ -105,15 +105,15 @@ class SQLiteConn:
             query += "is_complete = ?, "
             params.append(int(completion))
         query = query.rstrip(", ") 
-        query += " WHERE taskID = ? AND owner_id = ?"
+        query += " WHERE taskID = ? AND user_id = ?"
         params.append(taskID)
-        params.append(owner_id)
+        params.append(user_id)
         self.execute(query, tuple(params))
 
     # fetch all entries from the database. returns a list or None
-    def fetch_all_entries(self):
-        query = "SELECT * FROM tasks"
-        self.cursor.execute(query)
+    def fetch_all_entries(self, user_id):
+        query = "SELECT * FROM tasks WHERE user_id = ?"
+        self.cursor.execute(query, (user_id,))
 
         results = []
 
@@ -125,7 +125,8 @@ class SQLiteConn:
                 row[4],  # priority
                 row[5],  # category
                 row[6],  # details
-                bool(row[7])  # is_complete
+                bool(row[7]),  # is_complete
+                row[8]  # user_id
             )
             new_task.taskID = int(row[0])
             results.append(new_task)
@@ -133,9 +134,9 @@ class SQLiteConn:
         return results if results else None
 
     # fetch an entry from the database by its ID. returns a Task object or None
-    def fetch_entry_by_id(self, taskID, owner_id):
-        query = "SELECT * FROM tasks WHERE taskID = ? AND owner_id = ?"
-        self.cursor.execute(query, (taskID, owner_id))
+    def fetch_entry_by_id(self, taskID, user_id):
+        query = "SELECT * FROM tasks WHERE taskID = ? AND user_id = ?"
+        self.cursor.execute(query, (taskID, user_id))
 
         result = self.cursor.fetchone()
         if result:
@@ -147,7 +148,7 @@ class SQLiteConn:
                 result[5],  # category
                 result[6],  # details
                 bool(result[7]),  # is_complete
-                result[8]  # owner_id
+                result[8]  # user_id
             )
             new_task.taskID = int(result[0])
             return new_task
@@ -155,14 +156,14 @@ class SQLiteConn:
         return None
     
     # toggle the completion status of an entry
-    def toggle_entry_completion(self, taskID, owner_id):
-        query = "SELECT is_complete FROM tasks WHERE taskID = ? AND owner_id = ?"
-        self.cursor.execute(query, (taskID, owner_id))
+    def toggle_entry_completion(self, taskID, user_id):
+        query = "SELECT is_complete FROM tasks WHERE taskID = ? AND user_id = ?"
+        self.cursor.execute(query, (taskID, user_id))
         result = self.cursor.fetchone()
         if result:
             is_complete = not result[0]
-            query = "UPDATE tasks SET is_complete = ? WHERE taskID = ? AND owner_id = ?"
-            self.execute(query, (is_complete, taskID, owner_id))
+            query = "UPDATE tasks SET is_complete = ? WHERE taskID = ? AND user_id = ?"
+            self.execute(query, (is_complete, taskID, user_id))
         else:
             print(f"No entry found with taskID: {taskID}")
 
