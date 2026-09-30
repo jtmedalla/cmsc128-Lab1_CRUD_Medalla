@@ -6,6 +6,3 @@
 
 # ignore virtual environment files
 /.venv
-
-# ignore session files
-*.todo_session
