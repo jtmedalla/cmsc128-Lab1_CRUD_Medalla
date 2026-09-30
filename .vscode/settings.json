@@ -3,5 +3,6 @@
         "."
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "qt-ui.customWidgetsDesignerExePath": "${userHome}/Qt/6.11.2/gcc_64/bin/designer"
 }

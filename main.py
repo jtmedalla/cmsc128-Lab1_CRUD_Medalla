@@ -1,5 +1,13 @@
-from frontend.main_window import MainWindow
+import sys
+
+from PySide6.QtWidgets import QApplication
+
+from frontend.frontend import LoginGUI
 
 if __name__ == "__main__":
-    app = MainWindow()
-    app.mainloop()
+    app = QApplication(sys.argv)
+
+    window = LoginGUI()
+    window.show()
+
+    sys.exit(app.exec())
