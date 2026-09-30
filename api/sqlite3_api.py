@@ -19,6 +19,13 @@ class SQLiteConn:
         self.conn = sqlite3.connect(os.path.dirname(os.path.dirname(__file__)) + "/data/todolist.db")
         self.cursor = self.conn.cursor()
 
+        # create the users table if it doesn't exist
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                                userID INTEGER PRIMARY KEY AUTOINCREMENT,
+                                username TEXT NOT NULL UNIQUE,
+                                password TEXT NOT NULL
+                            )''')
+
         # Create the tasks table if it doesn't exist
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS tasks (
                                 taskID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,14 +35,9 @@ class SQLiteConn:
                                 priority INTEGER NOT NULL,
                                 category TEXT NOT NULL,
                                 details TEXT NOT NULL,
-                                is_complete BOOLEAN NOT NULL CHECK (is_complete IN (0, 1))
-                            )''')
-
-        # create the users table if it doesn't exist
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-                                userID INTEGER PRIMARY KEY AUTOINCREMENT,
-                                username TEXT NOT NULL UNIQUE,
-                                password TEXT NOT NULL
+                                is_complete BOOLEAN NOT NULL CHECK (is_complete IN (0, 1)),
+                                owner_id INTEGER NOT NULL,
+                                FOREIGN KEY (owner_id) REFERENCES users(userID)
                             )''')
         
         self.conn.commit()
@@ -56,10 +58,10 @@ class SQLiteConn:
         self.conn.commit()
 
     # add an entry to the database
-    def add_entry(self, title, dateAdded, dateDue, priority, category, details, completion=False):
-        query = "INSERT INTO tasks (title, dateAdded, dateDue, priority, category, details, is_complete) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    def add_entry(self, title, dateAdded, dateDue, priority, category, details, completion=False, owner_id=None):
+        query = "INSERT INTO tasks (title, dateAdded, dateDue, priority, category, details, is_complete, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         priority_value = getattr(priority, "value", priority)
-        params = (title, dateAdded, dateDue, priority_value, category, details, int(completion))
+        params = (title, dateAdded, dateDue, priority_value, category, details, int(completion), owner_id)
         self.execute(query, params)
 
         # return the id to assign to Task object based on database increments
@@ -75,7 +77,10 @@ class SQLiteConn:
         self.execute(query, params)
 
     # update an entry in the database
-    def update_entry(self, taskID, title=None, dateAdded=None, dateDue=None, priority=None, category=None, details=None, completion=None):
+    def update_entry(self, taskID, title=None, dateAdded=None, dateDue=None, priority=None, category=None, details=None, completion=None, owner_id=None):
+        if owner_id is None:
+            raise ValueError("owner_id must be provided to update an entry.")
+
         query = "UPDATE tasks SET "
         params = []
         if title is not None:
@@ -100,8 +105,9 @@ class SQLiteConn:
             query += "is_complete = ?, "
             params.append(int(completion))
         query = query.rstrip(", ") 
-        query += " WHERE taskID = ?"
+        query += " WHERE taskID = ? AND owner_id = ?"
         params.append(taskID)
+        params.append(owner_id)
         self.execute(query, tuple(params))
 
     # fetch all entries from the database. returns a list or None
@@ -127,9 +133,9 @@ class SQLiteConn:
         return results if results else None
 
     # fetch an entry from the database by its ID. returns a Task object or None
-    def fetch_entry_by_id(self, taskID):
-        query = "SELECT * FROM tasks WHERE taskID = ?"
-        self.cursor.execute(query, (taskID,))
+    def fetch_entry_by_id(self, taskID, owner_id):
+        query = "SELECT * FROM tasks WHERE taskID = ? AND owner_id = ?"
+        self.cursor.execute(query, (taskID, owner_id))
 
         result = self.cursor.fetchone()
         if result:
@@ -140,7 +146,8 @@ class SQLiteConn:
                 int(result[4]),  # priority
                 result[5],  # category
                 result[6],  # details
-                bool(result[7])  # is_complete
+                bool(result[7]),  # is_complete
+                result[8]  # owner_id
             )
             new_task.taskID = int(result[0])
             return new_task
@@ -148,14 +155,14 @@ class SQLiteConn:
         return None
     
     # toggle the completion status of an entry
-    def toggle_entry_completion(self, taskID):
-        query = "SELECT is_complete FROM tasks WHERE taskID = ?"
-        self.cursor.execute(query, (taskID,))
+    def toggle_entry_completion(self, taskID, owner_id):
+        query = "SELECT is_complete FROM tasks WHERE taskID = ? AND owner_id = ?"
+        self.cursor.execute(query, (taskID, owner_id))
         result = self.cursor.fetchone()
         if result:
             is_complete = not result[0]
-            query = "UPDATE tasks SET is_complete = ? WHERE taskID = ?"
-            self.execute(query, (is_complete, taskID))
+            query = "UPDATE tasks SET is_complete = ? WHERE taskID = ? AND owner_id = ?"
+            self.execute(query, (is_complete, taskID, owner_id))
         else:
             print(f"No entry found with taskID: {taskID}")
 
