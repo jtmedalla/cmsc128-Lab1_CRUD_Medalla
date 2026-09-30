@@ -1,8 +1,17 @@
+import hashlib
 import os
+import secrets
 import sqlite3
+import time
+
 import bcrypt
+import keyring
 
 from data import task
+
+KEYRING_SERVICE = "python-todolist"
+KEYRING_ACCOUNT = "current-session"
+
 
 def get_pw_hash(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
@@ -39,6 +48,15 @@ class SQLiteConn:
                                 user_id INTEGER NOT NULL,
                                 FOREIGN KEY (user_id) REFERENCES users(userID)
                             )''')
+        
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS sessions (
+                                sessionID INTEGER PRIMARY KEY AUTOINCREMENT,
+                                user_id INTEGER NOT NULL,
+                                token_hash TEXT NOT NULL UNIQUE,
+                                expires_at INTEGER NOT NULL,
+                                FOREIGN KEY (user_id) REFERENCES users(userID)
+                            )''')
+        
         
         self.conn.commit()
 
@@ -182,15 +200,81 @@ class SQLiteConn:
         self.execute(query, params)
         return True
 
-    def user_login(self, username, password):
-        query = "SELECT * FROM users WHERE username = ?"
-        params = (username,)
-        self.cursor.execute(query, params)
+    def authenticate_user(self, username, password):
+        self.cursor.execute(
+            "SELECT userID, password FROM users WHERE username = ?",
+            (username,)
+        )
+
         result = self.cursor.fetchone()
 
-        if result:
-            stored_hashed_pw = result[2]
-            if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_pw):
-                return True
-            
-        return False
+        if result and bcrypt.checkpw(
+            password.encode("utf-8"),
+            result[1]
+        ):
+            return result[0]  # userID
+
+        return None
+
+    
+    def create_session(self, user_id):
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        expires_at = int(time.time()) + (30 * 24 * 60 * 60)
+
+        # Delete any existing sessions for the user before creating a new one
+        self.execute(
+            "DELETE FROM sessions"
+        )
+
+        # delete keyring credentials if it exists to avoid duplicates
+        try:
+            keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+        except keyring.errors.PasswordDeleteError:
+            pass
+
+        self.execute(
+            "INSERT INTO sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+            (user_id, token_hash, expires_at)
+        )
+
+        # Store the token using the operating system's secure credential store.
+        keyring.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, token)
+
+        return token
+
+    def restore_session(self):
+        token = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+
+        if not token:
+            return None
+
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+        self.cursor.execute(
+            """SELECT user_id FROM sessions
+               WHERE token_hash = ? AND expires_at > ?""",
+            (token_hash, int(time.time()))
+        )
+
+        result = self.cursor.fetchone()
+
+        if result is None:
+            keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+
+        return result[0] if result else None
+
+    def logout(self):
+        token = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+
+        if token:
+            token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+            self.execute(
+                "DELETE FROM sessions WHERE token_hash = ?",
+                (token_hash,)
+            )
+
+            try:
+                keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+            except keyring.errors.PasswordDeleteError:
+                pass
