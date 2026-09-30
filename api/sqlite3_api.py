@@ -3,11 +3,14 @@ import os
 import secrets
 import sqlite3
 import time
-from pathlib import Path
 
 import bcrypt
+import keyring
 
 from data import task
+
+KEYRING_SERVICE = "python-todolist"
+KEYRING_ACCOUNT = "current-session"
 
 
 def get_pw_hash(password):
@@ -216,50 +219,62 @@ class SQLiteConn:
     
     def create_session(self, user_id):
         token = secrets.token_urlsafe(32)
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
-
-        # Session lasts 30 days
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         expires_at = int(time.time()) + (30 * 24 * 60 * 60)
+
+        # Delete any existing sessions for the user before creating a new one
+        self.execute(
+            "DELETE FROM sessions"
+        )
+
+        # delete keyring credentials if it exists to avoid duplicates
+        try:
+            keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+        except keyring.errors.PasswordDeleteError:
+            pass
 
         self.execute(
             "INSERT INTO sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
             (user_id, token_hash, expires_at)
         )
 
-        session_file = Path(__file__).parent / "../data/.todo_session"
-        session_file.write_text(token)
-        session_file.chmod(0o600)
+        # Store the token using the operating system's secure credential store.
+        keyring.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, token)
 
         return token
 
     def restore_session(self):
-        session_file = Path(__file__).parent / "../data/.todo_session"
+        token = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
 
-        if not session_file.exists():
+        if not token:
             return None
 
-        token = session_file.read_text().strip()
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
 
         self.cursor.execute(
             """SELECT user_id FROM sessions
-                WHERE token_hash = ? AND expires_at > ?""",
+               WHERE token_hash = ? AND expires_at > ?""",
             (token_hash, int(time.time()))
         )
 
         result = self.cursor.fetchone()
+
+        if result is None:
+            keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+
         return result[0] if result else None
 
     def logout(self):
-        session_file = Path(__file__).parent / "../data/.todo_session"
+        token = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
 
-        if session_file.exists():
-            token = session_file.read_text().strip()
-            token_hash = hashlib.sha256(token.encode()).hexdigest()
-
+        if token:
+            token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
             self.execute(
                 "DELETE FROM sessions WHERE token_hash = ?",
                 (token_hash,)
             )
 
-            session_file.unlink()
+            try:
+                keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+            except keyring.errors.PasswordDeleteError:
+                pass
