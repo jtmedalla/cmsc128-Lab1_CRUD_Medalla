@@ -1,7 +1,11 @@
 import os
 import sqlite3
+import bcrypt
 
 from data import task
+
+def get_pw_hash(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
 
 class SQLiteConn:
@@ -26,6 +30,14 @@ class SQLiteConn:
                                 details TEXT NOT NULL,
                                 is_complete BOOLEAN NOT NULL CHECK (is_complete IN (0, 1))
                             )''')
+
+        # create the users table if it doesn't exist
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                                userID INTEGER PRIMARY KEY AUTOINCREMENT,
+                                username TEXT NOT NULL UNIQUE,
+                                password TEXT NOT NULL
+                            )''')
+        
         self.conn.commit()
 
     # close the connection to the database
@@ -146,3 +158,31 @@ class SQLiteConn:
             self.execute(query, (is_complete, taskID))
         else:
             print(f"No entry found with taskID: {taskID}")
+
+    def add_user(self, username, password):
+        query = "SELECT * FROM users WHERE username = ?"
+        params = (username,)
+        self.cursor.execute(query, params)
+        result = self.cursor.fetchone()
+        if result:
+            return False  # User already exists
+
+        hashed_pw = get_pw_hash(password)
+
+        query = "INSERT INTO users (username, password) VALUES (?, ?)"
+        params = (username, hashed_pw)
+        self.execute(query, params)
+        return True
+
+    def user_login(self, username, password):
+        query = "SELECT * FROM users WHERE username = ?"
+        params = (username,)
+        self.cursor.execute(query, params)
+        result = self.cursor.fetchone()
+
+        if result:
+            stored_hashed_pw = result[2]
+            if bcrypt.checkpw(password.encode('utf-8'), stored_hashed_pw):
+                return True
+            
+        return False
