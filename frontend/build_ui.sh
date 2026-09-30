@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UI_DIR="$ROOT_DIR/frontend/ui"
+UI_DIR="$ROOT_DIR/frontend"
 
 source "$ROOT_DIR/.venv/bin/activate"
 

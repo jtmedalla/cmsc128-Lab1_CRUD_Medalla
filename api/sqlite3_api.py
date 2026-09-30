@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import os
 import secrets
 import sqlite3
@@ -64,8 +65,10 @@ class SQLiteConn:
     def close(self):
         if self.cursor:
             self.cursor.close()
+            self.cursor = None
         if self.conn:
             self.conn.close()
+            self.conn = None
 
     # execute the query 
     def execute(self, query, params=None):
@@ -200,6 +203,12 @@ class SQLiteConn:
         self.execute(query, params)
         return True
 
+    def get_username_by_id(self, user_id):
+        query = "SELECT username FROM users WHERE userID = ?"
+        self.cursor.execute(query, (user_id,))
+        result = self.cursor.fetchone()
+        return result[0] if result else None
+
     def authenticate_user(self, username, password):
         self.cursor.execute(
             "SELECT userID, password FROM users WHERE username = ?",
@@ -243,26 +252,46 @@ class SQLiteConn:
 
         return token
 
-    def restore_session(self):
-        token = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
-
-        if not token:
+    def compare_token(self, candidate_token):
+        #  Return the user ID if the candidate token is valid.
+        if not candidate_token:
             return None
 
-        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        candidate_hash = hashlib.sha256(
+            candidate_token.encode("utf-8")
+        ).hexdigest()
 
         self.cursor.execute(
-            """SELECT user_id FROM sessions
-               WHERE token_hash = ? AND expires_at > ?""",
-            (token_hash, int(time.time()))
+            """SELECT user_id, token_hash
+               FROM sessions
+               WHERE expires_at > ?""",
+            (int(time.time()),)
         )
 
-        result = self.cursor.fetchone()
+        for user_id, stored_hash in self.cursor.fetchall():
+            if hmac.compare_digest(candidate_hash, stored_hash):
+                return user_id
 
-        if result is None:
-            keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+        return None
 
-        return result[0] if result else None
+    def restore_session(self):
+        token = keyring.get_password(
+            KEYRING_SERVICE,
+            KEYRING_ACCOUNT
+        )
+
+        user_id = self.compare_token(token)
+
+        if user_id is None and token:
+            try:
+                keyring.delete_password(
+                    KEYRING_SERVICE,
+                    KEYRING_ACCOUNT
+                )
+            except keyring.errors.PasswordDeleteError:
+                pass
+
+        return user_id
 
     def logout(self):
         token = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
