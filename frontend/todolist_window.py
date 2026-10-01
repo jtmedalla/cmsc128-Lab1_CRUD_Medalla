@@ -29,7 +29,10 @@ class Ui_todolist_window(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(todolist_window.sizePolicy().hasHeightForWidth())
         todolist_window.setSizePolicy(sizePolicy)
+        todolist_window.setMinimumSize(QSize(800, 636))
+        todolist_window.setMaximumSize(QSize(800, 636))
         font = QFont()
+        font.setFamilies([u"Arial"])
         font.setPointSize(12)
         todolist_window.setFont(font)
         self.centralwidget = QWidget(todolist_window)
@@ -42,33 +45,30 @@ class Ui_todolist_window(object):
         self.layout_options.setContentsMargins(0, 0, 0, 0)
         self.lbl_filter_cat = QLabel(self.gridLayoutWidget)
         self.lbl_filter_cat.setObjectName(u"lbl_filter_cat")
-        font1 = QFont()
-        font1.setFamilies([u"Arial"])
-        font1.setPointSize(12)
-        self.lbl_filter_cat.setFont(font1)
+        self.lbl_filter_cat.setFont(font)
 
         self.layout_options.addWidget(self.lbl_filter_cat, 4, 0, 1, 1)
 
         self.lbl_sort = QLabel(self.gridLayoutWidget)
         self.lbl_sort.setObjectName(u"lbl_sort")
-        self.lbl_sort.setFont(font1)
+        self.lbl_sort.setFont(font)
 
         self.layout_options.addWidget(self.lbl_sort, 6, 0, 1, 1)
 
         self.lbl_todo_title = QLabel(self.gridLayoutWidget)
         self.lbl_todo_title.setObjectName(u"lbl_todo_title")
-        font2 = QFont()
-        font2.setFamilies([u"Arial Black"])
-        font2.setPointSize(20)
-        font2.setBold(True)
-        self.lbl_todo_title.setFont(font2)
+        font1 = QFont()
+        font1.setFamilies([u"Arial Black"])
+        font1.setPointSize(20)
+        font1.setBold(True)
+        self.lbl_todo_title.setFont(font1)
         self.lbl_todo_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.layout_options.addWidget(self.lbl_todo_title, 1, 0, 1, 2)
 
         self.lbl_filter_prio = QLabel(self.gridLayoutWidget)
         self.lbl_filter_prio.setObjectName(u"lbl_filter_prio")
-        self.lbl_filter_prio.setFont(font1)
+        self.lbl_filter_prio.setFont(font)
 
         self.layout_options.addWidget(self.lbl_filter_prio, 5, 0, 1, 1)
 
@@ -89,20 +89,20 @@ class Ui_todolist_window(object):
 
         self.lbl_welcome = QLabel(self.gridLayoutWidget)
         self.lbl_welcome.setObjectName(u"lbl_welcome")
-        self.lbl_welcome.setFont(font1)
+        self.lbl_welcome.setFont(font)
 
         self.layout_options.addWidget(self.lbl_welcome, 0, 0, 1, 1)
 
         self.btn_acc_settings = QPushButton(self.gridLayoutWidget)
         self.btn_acc_settings.setObjectName(u"btn_acc_settings")
-        self.btn_acc_settings.setFont(font1)
+        self.btn_acc_settings.setFont(font)
 
         self.layout_options.addWidget(self.btn_acc_settings, 0, 1, 1, 1)
 
         self.tabs_tasks = QTabWidget(self.centralwidget)
         self.tabs_tasks.setObjectName(u"tabs_tasks")
         self.tabs_tasks.setGeometry(QRect(10, 210, 781, 401))
-        self.tabs_tasks.setFont(font1)
+        self.tabs_tasks.setFont(font)
         self.tab_ongoing_tasks = QWidget()
         self.tab_ongoing_tasks.setObjectName(u"tab_ongoing_tasks")
         self.tabs_tasks.addTab(self.tab_ongoing_tasks, "")
@@ -123,7 +123,7 @@ class Ui_todolist_window(object):
     # setupUi
 
     def retranslateUi(self, todolist_window):
-        todolist_window.setWindowTitle(QCoreApplication.translate("todolist_window", u"Form", None))
+        todolist_window.setWindowTitle(QCoreApplication.translate("todolist_window", u"To Do List", None))
         self.lbl_filter_cat.setText(QCoreApplication.translate("todolist_window", u"Filter By Category:", None))
         self.lbl_sort.setText(QCoreApplication.translate("todolist_window", u"Sort by:", None))
         self.lbl_todo_title.setText(QCoreApplication.translate("todolist_window", u"To Do List", None))

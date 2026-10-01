@@ -16,13 +16,26 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="minimumSize">
+   <size>
+    <width>800</width>
+    <height>636</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>800</width>
+    <height>636</height>
+   </size>
+  </property>
   <property name="font">
    <font>
+    <family>Arial</family>
     <pointsize>12</pointsize>
    </font>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>To Do List</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QWidget" name="gridLayoutWidget">

@@ -23,6 +23,13 @@ class Ui_account_settings_window(object):
         if not account_settings_window.objectName():
             account_settings_window.setObjectName(u"account_settings_window")
         account_settings_window.resize(654, 289)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(account_settings_window.sizePolicy().hasHeightForWidth())
+        account_settings_window.setSizePolicy(sizePolicy)
+        account_settings_window.setMinimumSize(QSize(654, 289))
+        account_settings_window.setMaximumSize(QSize(654, 289))
         self.gridLayoutWidget = QWidget(account_settings_window)
         self.gridLayoutWidget.setObjectName(u"gridLayoutWidget")
         self.gridLayoutWidget.setGeometry(QRect(10, 10, 631, 161))
@@ -31,27 +38,33 @@ class Ui_account_settings_window(object):
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
         self.line_new_pwd = QLineEdit(self.gridLayoutWidget)
         self.line_new_pwd.setObjectName(u"line_new_pwd")
-        self.line_new_pwd.setEchoMode(QLineEdit.EchoMode.Password)
+        font = QFont()
+        font.setFamilies([u"Arial"])
+        font.setPointSize(12)
+        self.line_new_pwd.setFont(font)
+        self.line_new_pwd.setMaxLength(64)
+        self.line_new_pwd.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
 
         self.gridLayout.addWidget(self.line_new_pwd, 4, 1, 1, 1)
 
         self.lbl_update_pwd = QLabel(self.gridLayoutWidget)
         self.lbl_update_pwd.setObjectName(u"lbl_update_pwd")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(12)
         self.lbl_update_pwd.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_update_pwd, 3, 0, 1, 1)
 
         self.line_curr_pwd = QLineEdit(self.gridLayoutWidget)
         self.line_curr_pwd.setObjectName(u"line_curr_pwd")
-        self.line_curr_pwd.setEchoMode(QLineEdit.EchoMode.Password)
+        self.line_curr_pwd.setFont(font)
+        self.line_curr_pwd.setMaxLength(64)
+        self.line_curr_pwd.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
 
         self.gridLayout.addWidget(self.line_curr_pwd, 3, 1, 1, 1)
 
         self.line_update_usrname = QLineEdit(self.gridLayoutWidget)
         self.line_update_usrname.setObjectName(u"line_update_usrname")
+        self.line_update_usrname.setFont(font)
+        self.line_update_usrname.setMaxLength(32)
 
         self.gridLayout.addWidget(self.line_update_usrname, 1, 1, 1, 1)
 
@@ -87,13 +100,18 @@ class Ui_account_settings_window(object):
 
         self.btn_update_cancel = QPushButton(account_settings_window)
         self.btn_update_cancel.setObjectName(u"btn_update_cancel")
-        self.btn_update_cancel.setGeometry(QRect(390, 180, 201, 26))
+        self.btn_update_cancel.setGeometry(QRect(390, 180, 201, 31))
         self.btn_update_dets = QPushButton(account_settings_window)
         self.btn_update_dets.setObjectName(u"btn_update_dets")
-        self.btn_update_dets.setGeometry(QRect(50, 180, 201, 26))
+        self.btn_update_dets.setGeometry(QRect(50, 180, 201, 31))
         self.btn_logout = QPushButton(account_settings_window)
         self.btn_logout.setObjectName(u"btn_logout")
-        self.btn_logout.setGeometry(QRect(220, 230, 201, 26))
+        self.btn_logout.setGeometry(QRect(220, 230, 201, 31))
+        QWidget.setTabOrder(self.line_update_usrname, self.line_curr_pwd)
+        QWidget.setTabOrder(self.line_curr_pwd, self.line_new_pwd)
+        QWidget.setTabOrder(self.line_new_pwd, self.btn_update_dets)
+        QWidget.setTabOrder(self.btn_update_dets, self.btn_update_cancel)
+        QWidget.setTabOrder(self.btn_update_cancel, self.btn_logout)
 
         self.retranslateUi(account_settings_window)
 
@@ -101,7 +119,7 @@ class Ui_account_settings_window(object):
     # setupUi
 
     def retranslateUi(self, account_settings_window):
-        account_settings_window.setWindowTitle(QCoreApplication.translate("account_settings_window", u"Form", None))
+        account_settings_window.setWindowTitle(QCoreApplication.translate("account_settings_window", u"Update Account Details", None))
         self.lbl_update_pwd.setText(QCoreApplication.translate("account_settings_window", u"Current Password:", None))
         self.lbl_new_pass.setText(QCoreApplication.translate("account_settings_window", u"New Password:", None))
         self.lbl_update_usrname.setText(QCoreApplication.translate("account_settings_window", u"Username:", None))

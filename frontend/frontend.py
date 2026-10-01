@@ -2,11 +2,12 @@ from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QMainWindow
 
 from api import sqlite3_api
-from frontend import account_settings_window, login_window, todolist_window
+from frontend import account_settings_window, login_window, sign_up_window, todolist_window
 
 
 class LoginGUI(QMainWindow):
     login_successful = Signal(int)
+    signup_requested = Signal()
 
     def __init__(self, db_connection=None):
         super().__init__()
@@ -21,8 +22,6 @@ class LoginGUI(QMainWindow):
 
             if self.user_id is not None:
                 self.login_successful.emit(self.user_id)
-                #TODO: open the main application window for the user with user_id
-                print(f"Restored session for user_id: {self.user_id}")
 
         # initialize UI functionality
         self.ui.btn_login.clicked.connect(self.login_clicked)
@@ -42,29 +41,28 @@ class LoginGUI(QMainWindow):
         if self.user_id is not None:
             db.create_session(self.user_id)
             self.login_successful.emit(self.user_id)
-            self.closeEvent(None)  
+            self.close()
         else:
-            self.ui.statusbar.showMessage("Login failed. Please check your username and password.", 5000)
+            self.ui.statusbar.showMessage(
+                "Login failed. Please check your username and password.",
+                5000
+            )
+
         db.close()
+
+    def clear_credentials(self):
+        self.user_id = None
+        self.ui.line_username.clear()
+        self.ui.line_password.clear()
 
     @Slot()
     def signup_clicked(self):
-        username = self.ui.line_username.text()
-        password = self.ui.line_password.text()
-
-        db = self.db_connection
-
-        db.open()
-        if db.add_user(username, password):
-            self.ui.statusbar.showMessage("Signup successful! You can now log in.", 5000)
-        else:
-            self.ui.statusbar.showMessage("Signup failed. Username may already exist.", 5000)
-        db.close()
+        self.clear_credentials()
+        self.signup_requested.emit()
 
     def closeEvent(self, event):
-        if self.user_id is not None and self.db_connection.conn is not None:
-            self.db_connection.close()
-            self.close()
+        self.clear_credentials()
+        super().closeEvent(event)
 
 
 
@@ -161,26 +159,95 @@ class AccountSettingsWindow(QMainWindow):
             db.close()
             return
 
-        if db.update_user_info(self.user_session.user_id, username, new_password):
+        if username != self.user_session.username and db.username_exists(
+            username,
+            exclude_user_id=self.user_session.user_id
+        ):
+            self.status_message.emit(
+                "Username already exists. Please choose another username.",
+                5000
+            )
+            db.close()
+            return
+
+        if db.update_user_info(
+            self.user_session.user_id,
+            username,
+            new_password
+        ):
             self.status_message.emit(
                 "Account updated successfully!",
                 5000
             )
             self.updated_successfully.emit()
 
-            self.close()
-        else:
-            self.status_message.emit(
-                "Failed to update account details.",
-                5000
-            )
-
         db.close()
+        self.close()
 
     @Slot()
     def logout_clicked(self):
         self.logout.emit()
         self.close()
+
+    @Slot()
+    def closeEvent(self, event):
+        self.closed.emit()
+        super().closeEvent(event)
+
+class SignUpWindow(QMainWindow):
+    signup_successful = Signal()
+    closed = Signal()
+
+    def __init__(self, db_connection=None):
+        super().__init__()
+        self.ui = sign_up_window.Ui_create_account_window()
+        self.ui.setupUi(self)
+        self.db_connection = db_connection if db_connection else sqlite3_api.SQLiteConn()
+
+        self.ui.btn_create_acc.clicked.connect(self.signup_clicked)
+        self.ui.btn_cancel.clicked.connect(self.close)
+
+
+    @Slot()
+    def signup_clicked(self):
+        username = self.ui.line_new_username.text().strip()
+        password = self.ui.line_new_password.text()
+        confirm_password = self.ui.line_confirm_password.text()
+
+        if not username or not password:
+            self.ui.statusbar.showMessage(
+                "Username and password are required.", 5000
+            )
+            return
+
+        if password != confirm_password:
+            self.ui.statusbar.showMessage(
+                "Passwords do not match.", 5000
+            )
+            return
+
+        db = self.db_connection
+        db.open()
+
+        if db.username_exists(username):
+            self.ui.statusbar.showMessage(
+                "Username already exists. Please choose another username.", 5000
+            )
+            db.close()
+            return
+
+        if db.add_user(username, password):
+            self.ui.statusbar.showMessage(
+                "Account created successfully.", 5000
+            )
+            self.signup_successful.emit()
+            self.close()
+        else:
+            self.ui.statusbar.showMessage(
+                "Failed to create account.", 5000
+            )
+
+        db.close()
 
     def closeEvent(self, event):
         self.closed.emit()
