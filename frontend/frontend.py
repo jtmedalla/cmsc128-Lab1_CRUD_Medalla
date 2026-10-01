@@ -2,31 +2,41 @@ from PySide6.QtCore import Signal, Slot
 from PySide6.QtWidgets import QMainWindow
 
 from api import sqlite3_api
-from frontend import account_settings_window, login_window, sign_up_window, todolist_window
+from frontend import (
+    account_settings_window,
+    forgot_password_window,
+    login_window,
+    sign_up_window,
+    todolist_window,
+)
+
+MIN_PASSWORD_LENGTH = 8
 
 
 class LoginGUI(QMainWindow):
     login_successful = Signal(int)
     signup_requested = Signal()
+    forgot_password_requested = Signal()
 
     def __init__(self, db_connection=None):
         super().__init__()
         self.ui = login_window.Ui_login_window()
         self.ui.setupUi(self)
-        self.db_connection = db_connection if db_connection else sqlite3_api.SQLiteConn()
-        self.user_id = None
 
-        if self.db_connection.conn is not None:
-            self.user_id = self.db_connection.restore_session()
-            self.db_connection.close()
+        self.db_connection = (
+            db_connection
+            if db_connection
+            else sqlite3_api.SQLiteConn()
+        )
+        
+        self.user_id = self.db_connection.restore_session()
 
-            if self.user_id is not None:
-                self.login_successful.emit(self.user_id)
-
-        # initialize UI functionality
         self.ui.btn_login.clicked.connect(self.login_clicked)
         self.ui.btn_signup.clicked.connect(self.signup_clicked)
-        
+        self.ui.btn_forgot_password.clicked.connect(
+            self.forgot_password_clicked
+        )
+
     @Slot()
     def login_clicked(self):
         username = self.ui.line_username.text()
@@ -59,6 +69,10 @@ class LoginGUI(QMainWindow):
     def signup_clicked(self):
         self.clear_credentials()
         self.signup_requested.emit()
+
+    @Slot()
+    def forgot_password_clicked(self):
+        self.forgot_password_requested.emit()
 
     def closeEvent(self, event):
         self.clear_credentials()
@@ -142,9 +156,16 @@ class AccountSettingsWindow(QMainWindow):
 
     @Slot()
     def update_password_clicked(self):
-        username = self.ui.line_update_usrname.text()
+        username = self.ui.line_update_usrname.text().strip()
         old_password = self.ui.line_curr_pwd.text()
         new_password = self.ui.line_new_pwd.text()
+
+        if new_password != "" and not valid_password(new_password):
+            self.status_message.emit(
+                "New password must be at least 8 characters long.",
+                5000
+            )
+            return
 
         db = self.db_connection
         db.open()
@@ -200,13 +221,24 @@ class SignUpWindow(QMainWindow):
 
     def __init__(self, db_connection=None):
         super().__init__()
+        self._signup_completed = False
+
         self.ui = sign_up_window.Ui_create_account_window()
         self.ui.setupUi(self)
-        self.db_connection = db_connection if db_connection else sqlite3_api.SQLiteConn()
+
+        self.db_connection = (
+            db_connection
+            if db_connection
+            else sqlite3_api.SQLiteConn()
+        )
+
+        questions = sqlite3_api.SECURITY_QUESTIONS
+
+        self.ui.combo_security_question_1.addItems(questions)
+        self.ui.combo_security_question_2.addItems(questions)
 
         self.ui.btn_create_acc.clicked.connect(self.signup_clicked)
         self.ui.btn_cancel.clicked.connect(self.close)
-
 
     @Slot()
     def signup_clicked(self):
@@ -214,44 +246,181 @@ class SignUpWindow(QMainWindow):
         password = self.ui.line_new_password.text()
         confirm_password = self.ui.line_confirm_password.text()
 
-        if not username or not password:
+        question_1 = self.ui.combo_security_question_1.currentText()
+        question_2 = self.ui.combo_security_question_2.currentText()
+
+        answer_1 = self.ui.line_answer_1.text().strip()
+        answer_2 = self.ui.line_answer_2.text().strip()
+
+        if not all((
+            username,
+            password,
+            confirm_password,
+            answer_1,
+            answer_2,
+        )):
             self.ui.statusbar.showMessage(
-                "Username and password are required.", 5000
+                "All fields are required.",
+                5000
+            )
+            return
+
+        if not valid_password(password):
+            self.ui.statusbar.showMessage(
+                "Password must be at least 8 characters long.",
+                5000
             )
             return
 
         if password != confirm_password:
             self.ui.statusbar.showMessage(
-                "Passwords do not match.", 5000
+                "Passwords do not match.",
+                5000
             )
             return
 
-        db = self.db_connection
-        db.open()
-
-        if db.username_exists(username):
+        if question_1 == question_2:
             self.ui.statusbar.showMessage(
-                "Username already exists. Please choose another username.", 5000
+                "Choose two different security questions.",
+                5000
             )
-            db.close()
             return
 
-        if db.add_user(username, password):
+        if self.db_connection.username_exists(username):
             self.ui.statusbar.showMessage(
-                "Account created successfully.", 5000
+                "Username already exists.",
+                5000
             )
-            self.signup_successful.emit()
+            return
+
+        created = self.db_connection.add_user(
+            username,
+            password,
+            question_1,
+            answer_1,
+            question_2,
+            answer_2,
+        )
+
+        if not created:
+            self.ui.statusbar.showMessage(
+                "Failed to create account.",
+                5000
+            )
+            return
+
+        self.ui.statusbar.showMessage(
+            "Account created successfully.",
+            5000
+        )
+
+        self._signup_completed = True
+        self.signup_successful.emit()
+        self.close()
+
+    def closeEvent(self, event):
+        if not self._signup_completed:
+            self.closed.emit()
+
+        super().closeEvent(event)
+
+class ForgotPasswordWindow(QMainWindow):
+    completed = Signal()
+    closed = Signal()
+    status_message = Signal(str, int)
+
+    def __init__(self, db_connection=None):
+        super().__init__()
+        self.ui = forgot_password_window.Ui_forgot_password_window()
+        self.ui.setupUi(self)
+
+        self.db_connection = (
+            db_connection
+            if db_connection
+            else sqlite3_api.SQLiteConn()
+        )
+
+        questions = sqlite3_api.SECURITY_QUESTIONS
+        self.ui.combo_security_question_1.addItems(questions)
+        self.ui.combo_security_question_2.addItems(questions)
+
+        self.ui.line_username.editingFinished.connect(
+            self.load_security_questions
+        )
+        self.ui.btn_submit.clicked.connect(self.reset_password)
+        self.ui.btn_cancel.clicked.connect(self.close)
+
+    @Slot()
+    def load_security_questions(self):
+        username = self.ui.line_username.text().strip()
+
+        if not username:
+            return
+
+        questions = self.db_connection.get_security_questions(username)
+
+        if questions is None:
+            self.status_message.emit(
+                "Username was not found.", 5000
+            )
+            return
+
+        index_1 = self.ui.combo_security_question_1.findText(questions[0])
+        index_2 = self.ui.combo_security_question_2.findText(questions[1])
+
+        if index_1 >= 0:
+            self.ui.combo_security_question_1.setCurrentIndex(index_1)
+
+        if index_2 >= 0:
+            self.ui.combo_security_question_2.setCurrentIndex(index_2)
+
+    @Slot()
+    def reset_password(self):
+        username = self.ui.line_username.text().strip()
+        answer_1 = self.ui.line_answer_1.text()
+        answer_2 = self.ui.line_answer_2.text()
+        new_password = self.ui.line_new_password.text()
+
+        if not username or not answer_1 or not answer_2 or not new_password:
+            self.ui.statusbar.showMessage(
+                "All fields are required.",
+                5000
+            )
+            return
+
+        if not valid_password(new_password):
+            self.ui.statusbar.showMessage(
+                "New password must be at least 8 characters long.",
+                5000
+            )
+            return
+
+        success = self.db_connection.reset_password(
+            username,
+            answer_1,
+            answer_2,
+            new_password
+        )
+
+        if success:
+            self.ui.statusbar.showMessage(
+                "Account password reset successfully.",
+                5000
+            )
+            self.completed.emit()
             self.close()
         else:
             self.ui.statusbar.showMessage(
-                "Failed to create account.", 5000
+                "Incorrect security answers.",
+                5000
             )
-
-        db.close()
 
     def closeEvent(self, event):
         self.closed.emit()
         super().closeEvent(event)
+
+def valid_password(password):
+    return len(password) >= MIN_PASSWORD_LENGTH
 
 
 

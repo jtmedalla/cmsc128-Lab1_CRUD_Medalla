@@ -12,10 +12,23 @@ from data import task
 
 KEYRING_SERVICE = "python-todolist"
 KEYRING_ACCOUNT = "current-session"
+SECURITY_QUESTIONS = (
+    "What was the name of your first pet?",
+    "What is your favorite color?",
+    "What city were you born in?",
+    "What was the name of your elementary school?",
+)
 
 
 def get_pw_hash(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+
+def hash_answer(answer):
+    return bcrypt.hashpw(
+        answer.strip().lower().encode("utf-8"),
+        bcrypt.gensalt()
+    )
 
 
 class SQLiteConn:
@@ -33,7 +46,11 @@ class SQLiteConn:
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                                 userID INTEGER PRIMARY KEY AUTOINCREMENT,
                                 username TEXT NOT NULL UNIQUE,
-                                password TEXT NOT NULL
+                                password TEXT NOT NULL,
+                                security_question_1 TEXT,
+                                security_answer_1 BLOB,
+                                security_question_2 TEXT,
+                                security_answer_2 BLOB
                             )''')
 
         # Create the tasks table if it doesn't exist
@@ -59,6 +76,24 @@ class SQLiteConn:
                             )''')
         
         
+        columns = {
+            "security_question_1": "TEXT",
+            "security_answer_1": "BLOB",
+            "security_question_2": "TEXT",
+            "security_answer_2": "BLOB",
+        }
+
+        existing_columns = {
+            row[1]
+            for row in self.cursor.execute("PRAGMA table_info(users)")
+        }
+
+        for column, data_type in columns.items():
+            if column not in existing_columns:
+                self.cursor.execute(
+                    f"ALTER TABLE users ADD COLUMN {column} {data_type}"
+                )
+
         self.conn.commit()
 
     # close the connection to the database
@@ -188,26 +223,7 @@ class SQLiteConn:
         else:
             print(f"No entry found with taskID: {taskID}")
 
-    def add_user(self, username, password):
-        self.open()
 
-        query = "SELECT * FROM users WHERE username = ?"
-        params = (username,)
-        self.cursor.execute(query, params)
-        result = self.cursor.fetchone()
-        if result:
-            self.close()
-            return False  # User already exists
-
-        hashed_pw = get_pw_hash(password)
-
-        self.open()
-        query = "INSERT INTO users (username, password) VALUES (?, ?)"
-        params = (username, hashed_pw)
-        self.execute(query, params)
-        self.close()
-
-        return True
 
     def update_user_info(self, user_id, new_username=None, new_password=None):
         self.open()
@@ -372,3 +388,108 @@ class SQLiteConn:
         self.close()
 
         return return_val
+
+    def add_user(
+        self,
+        username,
+        password,
+        question_1,
+        answer_1,
+        question_2,
+        answer_2
+    ):
+        self.open()
+
+        try:
+            self.cursor.execute(
+                """
+                INSERT INTO users (
+                    username,
+                    password,
+                    security_question_1,
+                    security_answer_1,
+                    security_question_2,
+                    security_answer_2
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    username,
+                    get_pw_hash(password),
+                    question_1,
+                    hash_answer(answer_1),
+                    question_2,
+                    hash_answer(answer_2),
+                )
+            )
+            self.conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            self.close()
+
+    def get_security_questions(self, username):
+        self.open()
+
+        self.cursor.execute(
+            """
+            SELECT security_question_1, security_question_2
+            FROM users
+            WHERE username = ?
+            """,
+            (username,)
+        )
+
+        result = self.cursor.fetchone()
+        self.close()
+
+        return result
+
+    def reset_password(
+        self,
+        username,
+        answer_1,
+        answer_2,
+        new_password
+    ):
+        self.open()
+
+        self.cursor.execute(
+            """
+            SELECT security_answer_1, security_answer_2
+            FROM users
+            WHERE username = ?
+            """,
+            (username,)
+        )
+
+        result = self.cursor.fetchone()
+
+        if result is None or result[0] is None or result[1] is None:
+            self.close()
+            return False
+
+        valid_answers = (
+            bcrypt.checkpw(
+                answer_1.strip().lower().encode("utf-8"),
+                result[0]
+            )
+            and bcrypt.checkpw(
+                answer_2.strip().lower().encode("utf-8"),
+                result[1]
+            )
+        )
+
+        if not valid_answers:
+            self.close()
+            return False
+
+        self.cursor.execute(
+            "UPDATE users SET password = ? WHERE username = ?",
+            (get_pw_hash(new_password), username)
+        )
+        self.conn.commit()
+        self.close()
+
+        return True
