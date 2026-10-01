@@ -28,9 +28,11 @@ class LoginGUI(QMainWindow):
             if db_connection
             else sqlite3_api.SQLiteConn()
         )
-        
+
+        # restore user session if it exists
         self.user_id = self.db_connection.restore_session()
 
+        # connect signals to slots
         self.ui.btn_login.clicked.connect(self.login_clicked)
         self.ui.btn_signup.clicked.connect(self.signup_clicked)
         self.ui.btn_forgot_password.clicked.connect(
@@ -39,7 +41,8 @@ class LoginGUI(QMainWindow):
 
     @Slot()
     def login_clicked(self):
-        username = self.ui.line_username.text()
+        # handle the login button click event
+        username = self.ui.line_username.text().strip()
         password = self.ui.line_password.text()
 
         db = self.db_connection
@@ -48,6 +51,7 @@ class LoginGUI(QMainWindow):
 
         self.user_id = db.authenticate_user(username, password)
 
+        # if the user_id is not None, create a new session and emit the login_successful signal
         if self.user_id is not None:
             db.create_session(self.user_id)
             self.login_successful.emit(self.user_id)
@@ -61,20 +65,25 @@ class LoginGUI(QMainWindow):
         db.close()
 
     def clear_credentials(self):
+        # clear the username and password fields and reset the user_id
         self.user_id = None
         self.ui.line_username.clear()
         self.ui.line_password.clear()
 
     @Slot()
     def signup_clicked(self):
+        # handle the signup button click event
         self.clear_credentials()
         self.signup_requested.emit()
 
     @Slot()
     def forgot_password_clicked(self):
+        # handle the forgot password button click event
+        self.clear_credentials()
         self.forgot_password_requested.emit()
 
     def closeEvent(self, event):
+        # handle the close event of the login window, clear credentials and call the parent class's closeEvent
         self.clear_credentials()
         super().closeEvent(event)
 
@@ -84,6 +93,7 @@ class MainApp(QMainWindow):
     log_out = Signal()
 
     def __init__(self, user_session):
+        # initialize the main application window with the provided user session
         super().__init__()
         self.ui = todolist_window.Ui_todolist_window()
         self.ui.setupUi(self)
@@ -93,12 +103,14 @@ class MainApp(QMainWindow):
         self.initialize_content()
 
     def initialize_content(self):
+        # initialize the main application window's content, set the welcome label and connect the account settings button
         self.ui.lbl_welcome.setText(f"Welcome, {self.user_session.username}!")
         self.ui.btn_acc_settings.clicked.connect(self.account_settings_clicked)
 
 
     @Slot()
     def account_settings_clicked(self):
+        # handle the account settings button click event, disable the main window and show the account settings window
         self.setEnabled(False)
 
         self.account_settings_window = AccountSettingsWindow(self.user_session)
@@ -118,21 +130,25 @@ class MainApp(QMainWindow):
 
     @Slot()
     def account_settings_closed(self):
+        # handle the account settings window close event, re-enable the main window and bring it to the front
         self.setEnabled(True)
         self.activateWindow()
 
     @Slot()
     def refresh_account_details(self):
+        # refresh the account details in the main application window, update the username and welcome label
         self.user_session.username = self.user_session.get_username()
         self.ui.lbl_welcome.setText(f"Welcome, {self.user_session.username}!")
 
     @Slot()
     def user_logged_out(self):
+        # handle the user logout event, emit the log_out signal and close the main application window
         self.log_out.emit()
         self.close()
 
     @Slot(str, int)
     def show_status_message(self, message, timeout):
+        # show a status message in the main application window's status bar
         self.ui.statusbar.showMessage(message, timeout)
 
 
@@ -160,6 +176,7 @@ class AccountSettingsWindow(QMainWindow):
         old_password = self.ui.line_curr_pwd.text()
         new_password = self.ui.line_new_pwd.text()
 
+        # validate the new password if it is not empty and show an error message if it is invalid
         if new_password != "" and not valid_password(new_password):
             self.status_message.emit(
                 "New password must be at least 8 characters long.",
@@ -170,6 +187,7 @@ class AccountSettingsWindow(QMainWindow):
         db = self.db_connection
         db.open()
 
+        # authenticate the user with the old password and show an error message if it is incorrect
         is_authenticated = db.authenticate_user(
             self.user_session.username,
             old_password
@@ -180,6 +198,7 @@ class AccountSettingsWindow(QMainWindow):
             db.close()
             return
 
+        # check if the username is already taken by another user
         if username != self.user_session.username and db.username_exists(
             username,
             exclude_user_id=self.user_session.user_id
@@ -234,6 +253,7 @@ class SignUpWindow(QMainWindow):
 
         questions = sqlite3_api.SECURITY_QUESTIONS
 
+        # populate the security question combo boxes with the available questions
         self.ui.combo_security_question_1.addItems(questions)
         self.ui.combo_security_question_2.addItems(questions)
 
@@ -252,6 +272,8 @@ class SignUpWindow(QMainWindow):
         answer_1 = self.ui.line_answer_1.text().strip()
         answer_2 = self.ui.line_answer_2.text().strip()
 
+        # validate the input fields and show error messages if any of the required fields are empty, passwords do not match, 
+        # security questions are the same, or username already exists
         if not all((
             username,
             password,
@@ -265,6 +287,7 @@ class SignUpWindow(QMainWindow):
             )
             return
 
+        # validate the password length and show an error message if it is too short
         if not valid_password(password):
             self.ui.statusbar.showMessage(
                 "Password must be at least 8 characters long.",
@@ -272,6 +295,7 @@ class SignUpWindow(QMainWindow):
             )
             return
 
+        # validate that the password and confirm password fields match, and show an error message if they do not
         if password != confirm_password:
             self.ui.statusbar.showMessage(
                 "Passwords do not match.",
@@ -279,6 +303,7 @@ class SignUpWindow(QMainWindow):
             )
             return
 
+        # validate that the two security questions are different, and show an error message if they are the same
         if question_1 == question_2:
             self.ui.statusbar.showMessage(
                 "Choose two different security questions.",
@@ -286,6 +311,7 @@ class SignUpWindow(QMainWindow):
             )
             return
 
+        # check if the username already exists in the database, and show an error message if it does
         if self.db_connection.username_exists(username):
             self.ui.statusbar.showMessage(
                 "Username already exists.",
@@ -293,6 +319,7 @@ class SignUpWindow(QMainWindow):
             )
             return
 
+        # create the new user in the database and show a success or failure message based on the result
         created = self.db_connection.add_user(
             username,
             password,
@@ -340,6 +367,7 @@ class ForgotPasswordWindow(QMainWindow):
             else sqlite3_api.SQLiteConn()
         )
 
+        # populate the security question combo boxes with the available questions
         questions = sqlite3_api.SECURITY_QUESTIONS
         self.ui.combo_security_question_1.addItems(questions)
         self.ui.combo_security_question_2.addItems(questions)
@@ -352,6 +380,8 @@ class ForgotPasswordWindow(QMainWindow):
 
     @Slot()
     def load_security_questions(self):
+        # load the security questions for the given username and set them in the combo boxes,
+        # or show an error message if the username is not found
         username = self.ui.line_username.text().strip()
 
         if not username:
@@ -376,6 +406,7 @@ class ForgotPasswordWindow(QMainWindow):
 
     @Slot()
     def reset_password(self):
+        # reset the password for the given username if the security answers are correct, and show a success or failure message
         username = self.ui.line_username.text().strip()
         answer_1 = self.ui.line_answer_1.text()
         answer_2 = self.ui.line_answer_2.text()

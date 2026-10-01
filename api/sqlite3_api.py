@@ -223,8 +223,6 @@ class SQLiteConn:
         else:
             print(f"No entry found with taskID: {taskID}")
 
-
-
     def update_user_info(self, user_id, new_username=None, new_password=None):
         self.open()
 
