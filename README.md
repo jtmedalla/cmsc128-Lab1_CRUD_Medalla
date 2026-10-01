@@ -91,3 +91,4 @@ The password recovery mechanism works by asking the user to answer two security 
 The application is currently migrating to a new GUI framework (from tkinter to PyQt6). After the migration is complete, this section would be updated with screenshots of the working app.
 
 cmsc128-Indiv-Act1-finalX
+cmsc128-Indiv-Act2-finalX
