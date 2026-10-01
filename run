@@ -1,8 +1,34 @@
-# activate the virtual environment
-source .venv/bin/activate
+#!/usr/bin/env bash
+set -e
 
-# build the UI components
-frontend/build_ui.sh
+# Always run from the project directory
+cd "$(dirname "$0")"
 
-# run main.py
-python3 main.py
+case "$(uname -s)" in
+    Linux*)
+        VENV_ACTIVATE=".venv/bin/activate"
+        PYTHON="python3"
+        ;;
+    MINGW*|MSYS*|CYGWIN*)
+        VENV_ACTIVATE=".venv/Scripts/activate"
+        PYTHON="python"
+        ;;
+    *)
+        echo "Unsupported operating system: $(uname -s)"
+        exit 1
+        ;;
+esac
+
+# virtual environment must be activated before run command is executed
+if [ ! -f "$VENV_ACTIVATE" ]; then
+    echo "Virtual environment not found: $VENV_ACTIVATE"
+    exit 1
+fi
+
+source "$VENV_ACTIVATE"
+
+# Build the UI components
+bash frontend/build_ui.sh
+
+# Run main.py
+"$PYTHON" main.py
