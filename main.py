@@ -22,6 +22,7 @@ class Application:
         self.todo_window = None
         self.user_session = None
 
+        # check if database exists
         database_path = os.path.join(
             os.path.dirname(__file__),
             "data",
@@ -35,6 +36,8 @@ class Application:
         self.app = QApplication([])
 
         self.login_window = LoginGUI(self.db)
+
+        # connect signals to slots
         self.login_window.login_successful.connect(self.show_main_app)
         self.login_window.signup_requested.connect(
             self.show_create_account_window
@@ -45,6 +48,7 @@ class Application:
 
         self.db.close()
 
+        # check if database exists, or if no user is logged in and show appropriate window
         if database_exists:
             if self.login_window.user_id is None:
                 self.login_window.show()
@@ -58,6 +62,8 @@ class Application:
 
     @Slot(int)
     def show_main_app(self, user_id=None):
+        # shows the todo list application window
+
         if self.todo_window is not None:
             self.todo_window.activateWindow()
             return
@@ -73,8 +79,12 @@ class Application:
 
     @Slot()
     def show_login_window(self):
+
+        # pre-perfrom logout operations to ensure the user is logged out and the session is ended
+        # when the login window is shown again
         self.db.logout()
 
+        # close todo window and end user session if they exist
         if self.todo_window is not None:
             self.todo_window.close()
             self.todo_window = None
@@ -86,6 +96,7 @@ class Application:
         self.login_window = LoginGUI(self.db)
         self.login_window.clear_credentials()
 
+        # connect signals to slots
         self.login_window.login_successful.connect(
             self.show_main_app
         )
@@ -100,6 +111,7 @@ class Application:
 
     @Slot()
     def successful_signup(self, username, password):
+        # called when a new user signs up successfully
         self.db.open()
         user_id = self.db.authenticate_user(username, password)
         self.db.close()
@@ -109,6 +121,7 @@ class Application:
 
     @Slot()
     def show_create_account_window(self):
+        # shows the create account window and hides the login window
         self.login_window.hide()
 
         self.create_account_window = SignUpWindow(self.db)
@@ -123,6 +136,7 @@ class Application:
 
     @Slot()
     def show_forgot_password_window(self):
+        # shows the forgot password window and hides the login window
         self.login_window.hide()
 
         self.forgot_password_window = ForgotPasswordWindow(self.db)
@@ -137,6 +151,7 @@ class Application:
 
     @Slot(str, int)
     def show_login_status_message(self, message, timeout):
+        # shows a status message in the login window's status bar
         self.login_window.ui.statusbar.showMessage(message, timeout)
 
 
