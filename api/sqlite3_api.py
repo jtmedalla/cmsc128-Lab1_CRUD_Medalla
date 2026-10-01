@@ -198,9 +198,33 @@ class SQLiteConn:
 
         hashed_pw = get_pw_hash(password)
 
+        self.open()
         query = "INSERT INTO users (username, password) VALUES (?, ?)"
         params = (username, hashed_pw)
         self.execute(query, params)
+        self.close()
+
+        return True
+
+    def update_user_info(self, user_id, new_username=None, new_password=None):
+        self.open()
+
+        if new_username is None and new_password is None:
+            return False  # Nothing to update
+
+        if new_username:
+            query = "UPDATE users SET username = ? WHERE userID = ?"
+            params = (new_username, user_id)
+            self.execute(query, params)
+
+        if new_password:
+            hashed_pw = get_pw_hash(new_password)
+            query = "UPDATE users SET password = ? WHERE userID = ?"
+            params = (hashed_pw, user_id)
+            self.execute(query, params)
+
+        self.close()
+
         return True
 
     def get_username_by_id(self, user_id):
@@ -210,12 +234,15 @@ class SQLiteConn:
         return result[0] if result else None
 
     def authenticate_user(self, username, password):
+        self.open()
         self.cursor.execute(
             "SELECT userID, password FROM users WHERE username = ?",
             (username,)
         )
 
         result = self.cursor.fetchone()
+
+        self.close()
 
         if result and bcrypt.checkpw(
             password.encode("utf-8"),
@@ -227,6 +254,8 @@ class SQLiteConn:
 
     
     def create_session(self, user_id):
+        self.open()
+        
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         expires_at = int(time.time()) + (30 * 24 * 60 * 60)
@@ -250,9 +279,13 @@ class SQLiteConn:
         # Store the token using the operating system's secure credential store.
         keyring.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, token)
 
+        self.close()
+
         return token
 
     def compare_token(self, candidate_token):
+        self.open()
+
         #  Return the user ID if the candidate token is valid.
         if not candidate_token:
             return None
@@ -272,9 +305,13 @@ class SQLiteConn:
             if hmac.compare_digest(candidate_hash, stored_hash):
                 return user_id
 
+        self.close()
+
         return None
 
     def restore_session(self):
+        self.open()
+
         token = keyring.get_password(
             KEYRING_SERVICE,
             KEYRING_ACCOUNT
@@ -291,9 +328,13 @@ class SQLiteConn:
             except keyring.errors.PasswordDeleteError:
                 pass
 
+        self.close()
+
         return user_id
 
     def logout(self):
+        self.open()
+
         token = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
 
         if token:
@@ -307,3 +348,5 @@ class SQLiteConn:
                 keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
             except keyring.errors.PasswordDeleteError:
                 pass
+
+        self.close()
