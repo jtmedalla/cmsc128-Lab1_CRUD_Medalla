@@ -5,13 +5,16 @@ from PySide6.QtWidgets import QApplication
 
 from api.sqlite3_api import SQLiteConn
 from data import user_session
-from frontend.frontend import LoginGUI, MainApp
+from frontend.frontend import LoginGUI, MainApp, SignUpWindow
 
 
 class Application:
     user_logout = Signal()
+    user_signup = Signal(str, str)  # username, password
 
     def __init__(self):
+        self.todo_window = None
+        self.user_session = None
 
         self.db = SQLiteConn()
         self.db.open()
@@ -20,6 +23,7 @@ class Application:
 
         self.login_window = LoginGUI(self.db)
         self.login_window.login_successful.connect(self.show_main_app)
+        self.login_window.signup_requested.connect(self.show_create_account_window)
 
         self.db.close()
 
@@ -46,14 +50,45 @@ class Application:
 
     @Slot()
     def show_login_window(self):
-        self.todo_window.close()
-        self.db.open()
-        self.user_session.end_session()
         self.db.logout()
+
+        if self.todo_window is not None:
+            self.todo_window.close()
+            self.todo_window = None
+
+        if self.user_session is not None:
+            self.user_session.end_session()
+            self.user_session = None
+
         self.login_window = LoginGUI(self.db)
+        self.login_window.clear_credentials()
         self.login_window.login_successful.connect(self.show_main_app)
+        self.login_window.signup_requested.connect(
+            self.show_create_account_window
+        )
         self.login_window.show()
+
+    @Slot()
+    def successful_signup(self, username, password):
+        self.db.open()
+        user_id = self.db.authenticate_user(username, password)
         self.db.close()
+
+        if user_id is not None:
+            self.show_login_window()
+
+    @Slot()
+    def show_create_account_window(self):
+        self.login_window.hide()
+
+        self.create_account_window = SignUpWindow(self.db)
+        self.create_account_window.signup_successful.connect(
+            self.show_login_window
+        )
+        self.create_account_window.closed.connect(
+            self.login_window.show
+        )
+        self.create_account_window.show()
 
 
 if __name__ == "__main__":

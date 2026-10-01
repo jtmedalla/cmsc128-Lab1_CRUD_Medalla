@@ -189,11 +189,14 @@ class SQLiteConn:
             print(f"No entry found with taskID: {taskID}")
 
     def add_user(self, username, password):
+        self.open()
+
         query = "SELECT * FROM users WHERE username = ?"
         params = (username,)
         self.cursor.execute(query, params)
         result = self.cursor.fetchone()
         if result:
+            self.close()
             return False  # User already exists
 
         hashed_pw = get_pw_hash(password)
@@ -210,6 +213,7 @@ class SQLiteConn:
         self.open()
 
         if new_username is None and new_password is None:
+            self.close()
             return False  # Nothing to update
 
         if new_username:
@@ -350,3 +354,21 @@ class SQLiteConn:
                 pass
 
         self.close()
+
+    def username_exists(self, username, exclude_user_id=None):
+        self.open()
+
+        query = "SELECT 1 FROM users WHERE username = ?"
+        params = [username]
+
+        if exclude_user_id is not None:
+            query += " AND userID != ?"
+            params.append(exclude_user_id)
+
+        self.cursor.execute(query, params)
+
+        return_val = self.cursor.fetchone() is not None
+
+        self.close()
+
+        return return_val
