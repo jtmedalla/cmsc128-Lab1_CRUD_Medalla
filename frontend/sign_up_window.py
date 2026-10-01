@@ -23,14 +23,14 @@ class Ui_create_account_window(object):
     def setupUi(self, create_account_window):
         if not create_account_window.objectName():
             create_account_window.setObjectName(u"create_account_window")
-        create_account_window.resize(574, 300)
+        create_account_window.resize(574, 410)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(create_account_window.sizePolicy().hasHeightForWidth())
         create_account_window.setSizePolicy(sizePolicy)
-        create_account_window.setMinimumSize(QSize(574, 300))
-        create_account_window.setMaximumSize(QSize(574, 300))
+        create_account_window.setMinimumSize(QSize(574, 410))
+        create_account_window.setMaximumSize(QSize(574, 410))
         font = QFont()
         font.setFamilies([u"Arial"])
         font.setPointSize(12)
@@ -39,7 +39,7 @@ class Ui_create_account_window(object):
         self.centralwidget.setObjectName(u"centralwidget")
         self.gridLayoutWidget = QWidget(self.centralwidget)
         self.gridLayoutWidget.setObjectName(u"gridLayoutWidget")
-        self.gridLayoutWidget.setGeometry(QRect(10, 10, 551, 189))
+        self.gridLayoutWidget.setGeometry(QRect(10, 10, 551, 301))
         self.gridLayout = QGridLayout(self.gridLayoutWidget)
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
@@ -74,6 +74,11 @@ class Ui_create_account_window(object):
 
         self.gridLayout.addWidget(self.lbl_new_password, 2, 0, 1, 1)
 
+        self.lbl_answer_1 = QLabel(self.gridLayoutWidget)
+        self.lbl_answer_1.setObjectName(u"lbl_answer_1")
+
+        self.gridLayout.addWidget(self.lbl_answer_1, 5, 0, 1, 1)
+
         self.label = QLabel(self.gridLayoutWidget)
         self.label.setObjectName(u"label")
         self.label.setFont(font)
@@ -87,10 +92,15 @@ class Ui_create_account_window(object):
 
         self.gridLayout.addWidget(self.line_new_username, 1, 1, 1, 1)
 
-        self.cmb_security = QComboBox(self.gridLayoutWidget)
-        self.cmb_security.setObjectName(u"cmb_security")
+        self.lbl_security_question_2 = QLabel(self.gridLayoutWidget)
+        self.lbl_security_question_2.setObjectName(u"lbl_security_question_2")
 
-        self.gridLayout.addWidget(self.cmb_security, 4, 1, 1, 1)
+        self.gridLayout.addWidget(self.lbl_security_question_2, 6, 0, 1, 1)
+
+        self.combo_security_question_1 = QComboBox(self.gridLayoutWidget)
+        self.combo_security_question_1.setObjectName(u"combo_security_question_1")
+
+        self.gridLayout.addWidget(self.combo_security_question_1, 4, 1, 1, 1)
 
         self.line_confirm_password = QLineEdit(self.gridLayoutWidget)
         self.line_confirm_password.setObjectName(u"line_confirm_password")
@@ -105,31 +115,49 @@ class Ui_create_account_window(object):
 
         self.gridLayout.addWidget(self.line_confirm_password, 3, 1, 1, 1)
 
-        self.lbl_security_question = QLabel(self.gridLayoutWidget)
-        self.lbl_security_question.setObjectName(u"lbl_security_question")
+        self.lbl_security_question_1 = QLabel(self.gridLayoutWidget)
+        self.lbl_security_question_1.setObjectName(u"lbl_security_question_1")
 
-        self.gridLayout.addWidget(self.lbl_security_question, 4, 0, 1, 1)
+        self.gridLayout.addWidget(self.lbl_security_question_1, 4, 0, 1, 1)
 
-        self.lbl_answer = QLabel(self.gridLayoutWidget)
-        self.lbl_answer.setObjectName(u"lbl_answer")
+        self.line_answer_1 = QLineEdit(self.gridLayoutWidget)
+        self.line_answer_1.setObjectName(u"line_answer_1")
 
-        self.gridLayout.addWidget(self.lbl_answer, 5, 0, 1, 1)
+        self.gridLayout.addWidget(self.line_answer_1, 5, 1, 1, 1)
 
-        self.lineEdit = QLineEdit(self.gridLayoutWidget)
-        self.lineEdit.setObjectName(u"lineEdit")
+        self.lbl_answer_2 = QLabel(self.gridLayoutWidget)
+        self.lbl_answer_2.setObjectName(u"lbl_answer_2")
 
-        self.gridLayout.addWidget(self.lineEdit, 5, 1, 1, 1)
+        self.gridLayout.addWidget(self.lbl_answer_2, 7, 0, 1, 1)
+
+        self.line_answer_2 = QLineEdit(self.gridLayoutWidget)
+        self.line_answer_2.setObjectName(u"line_answer_2")
+
+        self.gridLayout.addWidget(self.line_answer_2, 7, 1, 1, 1)
+
+        self.combo_security_question_2 = QComboBox(self.gridLayoutWidget)
+        self.combo_security_question_2.setObjectName(u"combo_security_question_2")
+
+        self.gridLayout.addWidget(self.combo_security_question_2, 6, 1, 1, 1)
 
         self.btn_create_acc = QPushButton(self.centralwidget)
         self.btn_create_acc.setObjectName(u"btn_create_acc")
-        self.btn_create_acc.setGeometry(QRect(100, 210, 151, 31))
+        self.btn_create_acc.setGeometry(QRect(100, 340, 151, 31))
         self.btn_cancel = QPushButton(self.centralwidget)
         self.btn_cancel.setObjectName(u"btn_cancel")
-        self.btn_cancel.setGeometry(QRect(280, 210, 151, 31))
+        self.btn_cancel.setGeometry(QRect(280, 340, 151, 31))
         create_account_window.setCentralWidget(self.centralwidget)
         self.statusbar = QStatusBar(create_account_window)
         self.statusbar.setObjectName(u"statusbar")
         create_account_window.setStatusBar(self.statusbar)
+        QWidget.setTabOrder(self.line_new_username, self.line_new_password)
+        QWidget.setTabOrder(self.line_new_password, self.line_confirm_password)
+        QWidget.setTabOrder(self.line_confirm_password, self.combo_security_question_1)
+        QWidget.setTabOrder(self.combo_security_question_1, self.line_answer_1)
+        QWidget.setTabOrder(self.line_answer_1, self.combo_security_question_2)
+        QWidget.setTabOrder(self.combo_security_question_2, self.line_answer_2)
+        QWidget.setTabOrder(self.line_answer_2, self.btn_create_acc)
+        QWidget.setTabOrder(self.btn_create_acc, self.btn_cancel)
 
         self.retranslateUi(create_account_window)
 
@@ -141,9 +169,11 @@ class Ui_create_account_window(object):
         self.lbl_create_account.setText(QCoreApplication.translate("create_account_window", u"Create An Account:", None))
         self.lbl_confirm_password.setText(QCoreApplication.translate("create_account_window", u"Confirm Password:", None))
         self.lbl_new_password.setText(QCoreApplication.translate("create_account_window", u"New Password:", None))
+        self.lbl_answer_1.setText(QCoreApplication.translate("create_account_window", u"Answer 1:", None))
         self.label.setText(QCoreApplication.translate("create_account_window", u"New Username:", None))
-        self.lbl_security_question.setText(QCoreApplication.translate("create_account_window", u"Recovery Question", None))
-        self.lbl_answer.setText(QCoreApplication.translate("create_account_window", u"Answer:", None))
+        self.lbl_security_question_2.setText(QCoreApplication.translate("create_account_window", u"Recovery Question 2:", None))
+        self.lbl_security_question_1.setText(QCoreApplication.translate("create_account_window", u"Recovery Question 1:", None))
+        self.lbl_answer_2.setText(QCoreApplication.translate("create_account_window", u"Answer 2:", None))
         self.btn_create_acc.setText(QCoreApplication.translate("create_account_window", u"Create Account", None))
         self.btn_cancel.setText(QCoreApplication.translate("create_account_window", u"Cancel", None))
     # retranslateUi
