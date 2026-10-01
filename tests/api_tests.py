@@ -58,17 +58,19 @@ def test_conn():
 
 def test_add_user():
     db = sqlite3_api.SQLiteConn()
-    db.open()
+    
 
     username = "test_user_add"
     password = "test_password"
     bytes_password = password.encode('utf-8')
 
+    db.open()
     db.cursor.execute("DELETE FROM users WHERE username = ?", (username,))
     db.conn.commit()
 
     db.add_user(username, password)
 
+    db.open()
     db.cursor.execute(
         "SELECT username, password FROM users WHERE username = ?",
         (username,)
