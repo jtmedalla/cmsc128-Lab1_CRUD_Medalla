@@ -101,18 +101,14 @@ class Ui_todolist_window(object):
 
         self.tabs_tasks = QTabWidget(self.centralwidget)
         self.tabs_tasks.setObjectName(u"tabs_tasks")
-        self.tabs_tasks.setGeometry(QRect(10, 210, 781, 361))
+        self.tabs_tasks.setGeometry(QRect(10, 210, 781, 401))
         self.tabs_tasks.setFont(font)
         self.tab_ongoing_tasks = QWidget()
         self.tab_ongoing_tasks.setObjectName(u"tab_ongoing_tasks")
         self.tabs_tasks.addTab(self.tab_ongoing_tasks, "")
         self.tab_completed_tasks = QWidget()
         self.tab_completed_tasks.setObjectName(u"tab_completed_tasks")
-        self.tab_completed_tasks.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         self.tabs_tasks.addTab(self.tab_completed_tasks, "")
-        self.btn_add_task = QPushButton(self.centralwidget)
-        self.btn_add_task.setObjectName(u"btn_add_task")
-        self.btn_add_task.setGeometry(QRect(10, 580, 781, 26))
         todolist_window.setCentralWidget(self.centralwidget)
         self.statusbar = QStatusBar(todolist_window)
         self.statusbar.setObjectName(u"statusbar")
@@ -120,7 +116,7 @@ class Ui_todolist_window(object):
 
         self.retranslateUi(todolist_window)
 
-        self.tabs_tasks.setCurrentIndex(0)
+        self.tabs_tasks.setCurrentIndex(1)
 
 
         QMetaObject.connectSlotsByName(todolist_window)
@@ -136,6 +132,5 @@ class Ui_todolist_window(object):
         self.btn_acc_settings.setText(QCoreApplication.translate("todolist_window", u"Account Settings", None))
         self.tabs_tasks.setTabText(self.tabs_tasks.indexOf(self.tab_ongoing_tasks), QCoreApplication.translate("todolist_window", u"Ongoing Tasks", None))
         self.tabs_tasks.setTabText(self.tabs_tasks.indexOf(self.tab_completed_tasks), QCoreApplication.translate("todolist_window", u"Completed Tasks", None))
-        self.btn_add_task.setText(QCoreApplication.translate("todolist_window", u"Add Task", None))
     # retranslateUi
 

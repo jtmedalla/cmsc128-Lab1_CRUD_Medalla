@@ -1,22 +1,12 @@
-from PySide6.QtCore import QDate, QSignalBlocker, Qt, Signal, Slot
-from PySide6.QtWidgets import (
-    QFrame,
-    QLabel,
-    QMainWindow,
-    QScrollArea,
-    QSizePolicy,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtCore import Signal, Slot
+from PySide6.QtWidgets import QMainWindow
 
 from api import sqlite3_api
 from frontend import (
     account_settings_window,
-    add_task,
     forgot_password_window,
     login_window,
     sign_up_window,
-    task_card,
     todolist_window,
 )
 
@@ -97,67 +87,6 @@ class LoginGUI(QMainWindow):
         self.clear_credentials()
         super().closeEvent(event)
 
-class TaskCard(QFrame):
-    completion_changed = Signal(int, bool)
-
-    def __init__(self, current_task, parent=None):
-        super().__init__(parent)
-
-        priority_names = {
-            1: "Low",
-            2: "Medium",
-            3: "High",
-        }
-
-        priority_colors = {
-            1: "#D9F2D9",  # pastel green - Low
-            2: "#FFF2CC",  # pastel yellow - Medium
-            3: "#F4CCCC",  # pastel red - High
-        }
-
-        self.task_id = current_task.taskID
-
-        self.ui = task_card.Ui_frm_add_task()
-        self.ui.setupUi(self)
-
-        self.setMinimumHeight(127)
-        self.setMaximumHeight(127)
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed,
-        )
-
-        self.ui.lbl_placeholder_title.setText(str(current_task.title))
-        self.ui.lbl_placeholder_added.setText(str(current_task.dateAdded))
-        self.ui.lbl_placeholder_due.setText(str(current_task.dateDue))
-        self.ui.lbl_placeholder_priority.setText(
-            priority_names.get(int(current_task.priority), "Unknown")
-        )
-        self.ui.lbl_placeholder_category.setText(str(current_task.category))
-        self.ui.lbl_placeholder_details.setText(str(current_task.details))
-        self.ui.chkbox_is_complete.setChecked(
-            bool(current_task.is_complete)
-        )
-        self.ui.chkbox_is_complete.stateChanged.connect(
-            self._completion_changed
-        )
-
-        self.setStyleSheet(
-            f"""
-            QFrame {{
-                background-color: {
-                    priority_colors.get(int(current_task.priority), "#FFFFFF")
-                };
-                border: 1px solid #D0D0D0;
-                border-radius: 8px;
-            }}
-            """
-        )
-
-    @Slot(int)
-    def _completion_changed(self, state):
-        is_complete = state == Qt.CheckState.Checked.value
-        self.completion_changed.emit(self.task_id, is_complete)
 
 
 class MainApp(QMainWindow):
@@ -175,164 +104,9 @@ class MainApp(QMainWindow):
 
     def initialize_content(self):
         # initialize the main application window's content, set the welcome label and connect the account settings button
-        self.ui.lbl_welcome.setText(
-            f"Welcome, {self.user_session.username}!"
-        )
-        self.ui.btn_acc_settings.clicked.connect(
-            self.account_settings_clicked
-        )
-        self.ui.btn_add_task.clicked.connect(self.add_task_clicked)
+        self.ui.lbl_welcome.setText(f"Welcome, {self.user_session.username}!")
+        self.ui.btn_acc_settings.clicked.connect(self.account_settings_clicked)
 
-        self.setup_task_filters()
-        self.setup_task_tabs()
-        self.display_tasks()
-
-    def setup_task_filters(self):
-        self.ui.combo_category.currentIndexChanged.connect(
-            lambda: self.display_tasks()
-        )
-        self.ui.combo_priority.currentIndexChanged.connect(
-            lambda: self.display_tasks()
-        )
-        self.ui.combo_sort.currentIndexChanged.connect(
-            lambda: self.display_tasks()
-        )
-
-        self.ui.combo_priority.addItem("All Priorities", None)
-        self.ui.combo_priority.addItem("Low", 1)
-        self.ui.combo_priority.addItem("Medium", 2)
-        self.ui.combo_priority.addItem("High", 3)
-
-        self.ui.combo_sort.addItem("Due Date", "dateDue")
-        self.ui.combo_sort.addItem("Date Added", "dateAdded")
-        self.ui.combo_sort.addItem("Priority", "priority")
-        self.ui.combo_sort.addItem("Title", "title")
-
-    def update_category_filter(self, tasks):
-        selected_category = self.ui.combo_category.currentData()
-
-        categories = sorted({
-            str(current_task.category)
-            for current_task in tasks
-            if current_task.category
-        })
-
-        blocker = QSignalBlocker(self.ui.combo_category)
-        self.ui.combo_category.clear()
-        self.ui.combo_category.addItem("All Categories", None)
-
-        for category in categories:
-            self.ui.combo_category.addItem(category, category)
-
-        index = self.ui.combo_category.findData(selected_category)
-        self.ui.combo_category.setCurrentIndex(max(index, 0))
-
-        del blocker
-
-    def display_tasks(self):
-        """Display filtered and sorted tasks in the appropriate task tab."""
-        tasks = self.db_connection.get_tasks_for_user(
-            self.user_session.user_id
-        ) or []
-
-        self.update_category_filter(tasks)
-
-        selected_category = self.ui.combo_category.currentData()
-        selected_priority = self.ui.combo_priority.currentData()
-        sort_field = self.ui.combo_sort.currentData()
-
-        if selected_category is not None:
-            tasks = [
-                current_task
-                for current_task in tasks
-                if current_task.category == selected_category
-            ]
-
-        if selected_priority is not None:
-            tasks = [
-                current_task
-                for current_task in tasks
-                if int(current_task.priority) == selected_priority
-            ]
-
-        if sort_field == "priority":
-            tasks.sort(key=lambda current_task: int(current_task.priority))
-        elif sort_field == "title":
-            tasks.sort(
-                key=lambda current_task: str(
-                    current_task.title
-                ).casefold()
-            )
-        else:
-            tasks.sort(
-                key=lambda current_task: str(
-                    getattr(current_task, sort_field)
-                )
-            )
-
-        pages = (
-            (
-                self.ui.tab_ongoing_tasks,
-                [item for item in tasks if not item.is_complete],
-            ),
-            (
-                self.ui.tab_completed_tasks,
-                [item for item in tasks if item.is_complete],
-            ),
-        )
-
-        for page, page_tasks in pages:
-            layout = self.task_containers[page].task_layout
-
-            while layout.count():
-                item = layout.takeAt(0)
-                widget = item.widget()
-
-                if widget is not None:
-                    widget.deleteLater()
-
-            for current_task in page_tasks:
-                card = TaskCard(
-                    current_task,
-                    self.task_containers[page],
-                )
-                card.completion_changed.connect(
-                    self.task_completion_changed
-                )
-                layout.addWidget(card)
-
-            layout.addStretch()
-            self.task_containers[page].update()
-
-    def setup_task_tabs(self):
-        self.task_containers = {}
-
-        for tab in (
-            self.ui.tab_ongoing_tasks,
-            self.ui.tab_completed_tasks,
-        ):
-            tab_layout = QVBoxLayout(tab)
-            tab_layout.setContentsMargins(0, 0, 0, 0)
-
-            scroll_area = QScrollArea(tab)
-            scroll_area.setWidgetResizable(True)
-
-            container = QWidget()
-            container.task_layout = QVBoxLayout(container)
-            container.task_layout.setContentsMargins(8, 8, 8, 8)
-            container.task_layout.setSpacing(8)
-
-            scroll_area.setWidget(container)
-            tab_layout.addWidget(scroll_area)
-
-            self.task_containers[tab] = container
-
-    @staticmethod
-    def _set_card_text(card, object_name, value):
-        widget = card.findChild(QLabel, object_name)
-
-        if widget is not None:
-            widget.setText(str(value))
 
     @Slot()
     def account_settings_clicked(self):
@@ -376,42 +150,6 @@ class MainApp(QMainWindow):
     def show_status_message(self, message, timeout):
         # show a status message in the main application window's status bar
         self.ui.statusbar.showMessage(message, timeout)
-
-    @Slot()
-    def add_task_clicked(self):
-        self.setEnabled(False)
-
-        self.add_task_window = AddTaskWindow(self.user_session)
-        self.add_task_window.closed.connect(
-            self.add_task_window_closed
-        )
-        self.add_task_window.show()
-
-    @Slot()
-    def add_task_window_closed(self):
-        self.display_tasks()
-        self.setEnabled(True)
-        self.activateWindow()
-
-    @Slot()
-    def task_added_method(self):
-        self.add_task_window.close()
-
-    @Slot(int, bool)
-    def task_completion_changed(self, task_id, is_complete):
-        db = self.db_connection
-        db.open()
-
-        try:
-            db.update_entry(
-                taskID=task_id,
-                completion=is_complete,
-                user_id=self.user_session.user_id,
-            )
-        finally:
-            db.close()
-
-        self.display_tasks()
 
 
 class AccountSettingsWindow(QMainWindow):
@@ -715,61 +453,5 @@ class ForgotPasswordWindow(QMainWindow):
 def valid_password(password):
     return len(password) >= MIN_PASSWORD_LENGTH
 
-
-class AddTaskWindow(QMainWindow):
-    task_added = Signal()
-    closed = Signal()
-
-    def __init__(self, user_session):
-        super().__init__()
-
-        self.ui = add_task.Ui_window_add_task()
-        self.ui.setupUi(self)
-
-        self.user_session = user_session
-        self.db_connection = user_session.db_connection
-
-        self.ui.cmb_priority.addItem("Low", 1)
-        self.ui.cmb_priority.addItem("Medium", 2)
-        self.ui.cmb_priority.addItem("High", 3)
-
-        self.ui.btn_add_task.clicked.connect(self.add_task_clicked)
-
-    @Slot()
-    def add_task_clicked(self):
-        title = self.ui.line_title.text().strip()
-        category = self.ui.line_category.text().strip()
-        details = self.ui.textEdit.toPlainText().strip()
-
-        if not title:
-            self.ui.statusbar.showMessage(
-                "Task title is required.",
-                5000
-            )
-            return
-
-        try:
-            self.db_connection.add_task(
-                title=title,
-                date_added=QDate.currentDate().toString("yyyy-MM-dd"),
-                date_due=self.ui.date_date_due.date().toString("yyyy-MM-dd"),
-                priority=self.ui.cmb_priority.currentData(),
-                category=category,
-                details=details,
-                user_id=self.user_session.user_id,
-            )
-        except Exception as error:
-            self.ui.statusbar.showMessage(
-                f"Failed to add task: {error}",
-                5000
-            )
-            return
-
-        self.task_added.emit()
-        self.close()
-
-    def closeEvent(self, event):
-        self.closed.emit()
-        super().closeEvent(event)
 
 
