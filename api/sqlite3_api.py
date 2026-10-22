@@ -429,23 +429,6 @@ class SQLiteConn:
         finally:
             self.close()
 
-    def get_security_questions(self, username):
-        self.open()
-
-        self.cursor.execute(
-            """
-            SELECT security_question_1, security_question_2
-            FROM users
-            WHERE username = ?
-            """,
-            (username,)
-        )
-
-        result = self.cursor.fetchone()
-        self.close()
-
-        return result
-
     def reset_password(
         self,
         username,

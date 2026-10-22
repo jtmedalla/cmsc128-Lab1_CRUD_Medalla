@@ -695,37 +695,8 @@ class ForgotPasswordWindow(QMainWindow):
         self.ui.combo_security_question_1.addItems(questions)
         self.ui.combo_security_question_2.addItems(questions)
 
-        self.ui.line_username.editingFinished.connect(
-            self.load_security_questions
-        )
         self.ui.btn_submit.clicked.connect(self.reset_password)
         self.ui.btn_cancel.clicked.connect(self.close)
-
-    @Slot()
-    def load_security_questions(self):
-        # load the security questions for the given username and set them in the combo boxes,
-        # or show an error message if the username is not found
-        username = self.ui.line_username.text().strip()
-
-        if not username:
-            return
-
-        questions = self.db_connection.get_security_questions(username)
-
-        if questions is None:
-            self.status_message.emit(
-                "Username was not found.", 5000
-            )
-            return
-
-        index_1 = self.ui.combo_security_question_1.findText(questions[0])
-        index_2 = self.ui.combo_security_question_2.findText(questions[1])
-
-        if index_1 >= 0:
-            self.ui.combo_security_question_1.setCurrentIndex(index_1)
-
-        if index_2 >= 0:
-            self.ui.combo_security_question_2.setCurrentIndex(index_2)
 
     @Slot()
     def reset_password(self):
