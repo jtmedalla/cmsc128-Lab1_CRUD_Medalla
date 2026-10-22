@@ -183,8 +183,9 @@ class MainApp(QMainWindow):
         )
         self.ui.btn_add_task.clicked.connect(self.add_task_clicked)
 
-        self.setup_task_filters()
+        # Initialize containers before connecting/populating filters.
         self.setup_task_tabs()
+        self.setup_task_filters()
         self.display_tasks()
 
     def setup_task_filters(self):
@@ -725,6 +726,8 @@ class AddTaskWindow(QMainWindow):
 
         self.ui = add_task.Ui_window_add_task()
         self.ui.setupUi(self)
+
+        self.ui.date_date_due.setDate(QDate.currentDate())
 
         self.user_session = user_session
         self.db_connection = user_session.db_connection
