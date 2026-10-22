@@ -109,6 +109,12 @@ class TaskCard(QFrame):
             3: "High",
         }
 
+        priority_colors = {
+            1: "#D9F2D9",  # pastel green - Low
+            2: "#FFF2CC",  # pastel yellow - Medium
+            3: "#F4CCCC",  # pastel red - High
+        }
+
         self.task_id = current_task.taskID
 
         self.ui = task_card.Ui_frm_add_task()
@@ -134,6 +140,18 @@ class TaskCard(QFrame):
         )
         self.ui.chkbox_is_complete.stateChanged.connect(
             self._completion_changed
+        )
+
+        self.setStyleSheet(
+            f"""
+            QFrame {{
+                background-color: {
+                    priority_colors.get(int(current_task.priority), "#FFFFFF")
+                };
+                border: 1px solid #D0D0D0;
+                border-radius: 8px;
+            }}
+            """
         )
 
     @Slot(int)
