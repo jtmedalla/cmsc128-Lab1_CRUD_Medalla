@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>window_add_task</class>
+ <widget class="QMainWindow" name="window_add_task">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>477</width>
+    <height>330</height>
+   </rect>
+  </property>
+  <property name="font">
+   <font>
+    <family>Arial</family>
+   </font>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
+   </property>
+   <widget class="QWidget" name="formLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>461</width>
+      <height>291</height>
+     </rect>
+    </property>
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0" colspan="2">
+      <widget class="QLabel" name="lbl_title">
+       <property name="font">
+        <font>
+         <family>Arial</family>
+         <pointsize>24</pointsize>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Task Details</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="lb_title">
+       <property name="text">
+        <string>Title:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="line_title"/>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="lbl_date_due">
+       <property name="text">
+        <string>Date Due:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QDateEdit" name="date_date_due"/>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="lbl_priority">
+       <property name="text">
+        <string>Priority: </string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QComboBox" name="cmb_priority"/>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="lb_category">
+       <property name="text">
+        <string>Category: </string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLineEdit" name="line_category"/>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="lbl_details">
+       <property name="text">
+        <string>Details:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QTextEdit" name="textEdit"/>
+     </item>
+     <item row="6" column="0" colspan="2">
+      <widget class="QPushButton" name="btn_add_task">
+       <property name="text">
+        <string>Update Task</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
