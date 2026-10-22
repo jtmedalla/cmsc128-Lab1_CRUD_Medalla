@@ -18,7 +18,11 @@ Overall, the tech stack is excellent in developing simple applications, like a t
 To run locally, execute the following commands in the terminal:
 ```bash
 # clone the repository
-git clone
+# via HTTPS
+git clone https://github.com/jtmedalla/cmsc128-Lab1_CRUD_Medalla.git
+
+# via SSH
+git clone git@github.com:jtmedalla/cmsc128-Lab1_CRUD_Medalla.git
 
 # change directory to the project folder
 cd cmsc128-lab1_CRUD_Medalla
