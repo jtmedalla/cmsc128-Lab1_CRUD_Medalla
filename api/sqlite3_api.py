@@ -4,6 +4,7 @@ import os
 import secrets
 import sqlite3
 import time
+from contextlib import contextmanager
 
 import bcrypt
 import keyring
@@ -18,6 +19,7 @@ SECURITY_QUESTIONS = (
     "What city were you born in?",
     "What was the name of your elementary school?",
 )
+SESSION_DURATION = 30 * 24 * 60 * 60  # 30 days in seconds
 
 
 def get_pw_hash(password):
@@ -113,198 +115,231 @@ class SQLiteConn:
             self.cursor.execute(query, params)
         self.conn.commit()
 
-    # add an entry to the database
-    def add_entry(self, title, dateAdded, dateDue, priority, category, details, completion=False, user_id=None):
-        query = "INSERT INTO tasks (title, dateAdded, dateDue, priority, category, details, is_complete, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-        priority_value = getattr(priority, "value", priority)
-        params = (title, dateAdded, dateDue, priority_value, category, details, int(completion), user_id)
-        self.execute(query, params)
+    @contextmanager
+    def connection(self):
+        self.open()
+        try:
+            yield self
+        finally:
+            self.close()
 
-        # return the id to assign to Task object based on database increments
-        query = "SELECT last_insert_rowid()"
-        self.cursor.execute(query)
-        last_id = self.cursor.fetchone()[0]
-        return last_id
+    def _add_entry_open(
+        self,
+        title,
+        dateAdded,
+        dateDue,
+        priority,
+        category,
+        details,
+        completion=False,
+        user_id=None,
+    ):
+        query = """
+            INSERT INTO tasks
+            (title, dateAdded, dateDue, priority, category, details,
+             is_complete, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            title,
+            dateAdded,
+            dateDue,
+            getattr(priority, "value", priority),
+            category,
+            details,
+            int(completion),
+            user_id,
+        )
+        self.execute(query, params)
+        return self.cursor.lastrowid
+
+    def add_entry(
+        self,
+        title,
+        dateAdded,
+        dateDue,
+        priority,
+        category,
+        details,
+        completion=False,
+        user_id=None,
+    ):
+        with self.connection():
+            return self._add_entry_open(
+                title,
+                dateAdded,
+                dateDue,
+                priority,
+                category,
+                details,
+                completion,
+                user_id,
+            )
+
+    def add_task(
+        self,
+        title,
+        date_added,
+        date_due,
+        priority,
+        category,
+        details,
+        user_id,
+        completion=False,
+    ):
+        if user_id is None:
+            raise ValueError("user_id must be provided.")
+
+        with self.connection():
+            return self._add_entry_open(
+                title,
+                date_added,
+                date_due,
+                priority,
+                category,
+                details,
+                completion,
+                user_id,
+            )
 
     # remove an entry from the database
     def remove_entry(self, taskID, user_id):
-        query = "DELETE FROM tasks WHERE taskID = ? AND user_id = ?"
-        params = (taskID, user_id)
-        self.execute(query, params)
+        with self.connection():
+            self.execute(
+                "DELETE FROM tasks WHERE taskID = ? AND user_id = ?",
+                (taskID, user_id),
+            )
 
     # update an entry in the database
-    def update_entry(self, taskID, title=None, dateAdded=None, dateDue=None, priority=None, category=None, details=None, completion=None, user_id=None):
+    def update_entry(
+        self,
+        taskID,
+        title=None,
+        dateAdded=None,
+        dateDue=None,
+        priority=None,
+        category=None,
+        details=None,
+        completion=None,
+        user_id=None,
+    ):
         if user_id is None:
-            raise ValueError("user_id must be provided to update an entry.")
+            raise ValueError("user_id must be provided.")
 
-        query = "UPDATE tasks SET "
+        fields = []
         params = []
-        if title is not None:
-            query += "title = ?, "
-            params.append(title)
-        if dateAdded is not None:
-            query += "dateAdded = ?, "
-            params.append(dateAdded)
-        if dateDue is not None:
-            query += "dateDue = ?, "
-            params.append(dateDue)
-        if priority is not None:
-            query += "priority = ?, "
-            params.append(getattr(priority, "value", priority))
-        if category is not None:
-            query += "category = ?, "
-            params.append(category)
-        if details is not None:
-            query += "details = ?, "
-            params.append(details)
-        if completion is not None:
-            query += "is_complete = ?, "
-            params.append(int(completion))
-        query = query.rstrip(", ") 
-        query += " WHERE taskID = ? AND user_id = ?"
-        params.append(taskID)
-        params.append(user_id)
-        self.execute(query, tuple(params))
+
+        values = {
+            "title": title,
+            "dateAdded": dateAdded,
+            "dateDue": dateDue,
+            "priority": (
+                getattr(priority, "value", priority)
+                if priority is not None
+                else None
+            ),
+            "category": category,
+            "details": details,
+            "is_complete": (
+                int(completion) if completion is not None else None
+            ),
+        }
+
+        for field, value in values.items():
+            if value is not None:
+                fields.append(f"{field} = ?")
+                params.append(value)
+
+        if not fields:
+            return
+
+        params.extend((taskID, user_id))
+
+        with self.connection():
+            self.execute(
+                f"""
+                UPDATE tasks
+                SET {", ".join(fields)}
+                WHERE taskID = ? AND user_id = ?
+                """,
+                tuple(params),
+            )
 
     # fetch all entries from the database. returns a list or None
     def fetch_all_entries(self, user_id):
-        query = "SELECT * FROM tasks WHERE user_id = ?"
-        self.cursor.execute(query, (user_id,))
+        with self.connection():
+            self.cursor.execute(
+                "SELECT * FROM tasks WHERE user_id = ?",
+                (user_id,),
+            )
+            rows = self.cursor.fetchall()
 
         results = []
-
-        for row in self.cursor.fetchall():
-            new_task = task.Task(
-                row[1],  # title
-                row[2],  # dateAdded
-                row[3],  # dateDue
-                row[4],  # priority
-                row[5],  # category
-                row[6],  # details
-                bool(row[7]),  # is_complete
-                row[8]  # user_id
+        for row in rows:
+            current_task = task.Task(
+                row[1], row[2], row[3], row[4],
+                row[5], row[6], bool(row[7]), row[8],
             )
-            new_task.taskID = int(row[0])
-            results.append(new_task)
+            current_task.taskID = int(row[0])
+            results.append(current_task)
 
-        return results if results else None
+        return results or None
 
     # fetch an entry from the database by its ID. returns a Task object or None
     def fetch_entry_by_id(self, taskID, user_id):
-        query = "SELECT * FROM tasks WHERE taskID = ? AND user_id = ?"
-        self.cursor.execute(query, (taskID, user_id))
-
-        result = self.cursor.fetchone()
-        if result:
-            new_task = task.Task(
-                result[1],  # title
-                result[2],  # dateAdded
-                result[3],  # dateDue
-                int(result[4]),  # priority
-                result[5],  # category
-                result[6],  # details
-                bool(result[7]),  # is_complete
-                result[8]  # user_id
+        with self.connection():
+            self.cursor.execute(
+                """
+                SELECT * FROM tasks
+                WHERE taskID = ? AND user_id = ?
+                """,
+                (taskID, user_id),
             )
-            new_task.taskID = int(result[0])
-            return new_task
+            row = self.cursor.fetchone()
 
-        return None
-    
+        if not row:
+            return None
+
+        current_task = task.Task(
+            row[1], row[2], row[3], int(row[4]),
+            row[5], row[6], bool(row[7]), row[8],
+        )
+        current_task.taskID = int(row[0])
+        return current_task
+
     # toggle the completion status of an entry
     def toggle_entry_completion(self, taskID, user_id):
-        query = "SELECT is_complete FROM tasks WHERE taskID = ? AND user_id = ?"
-        self.cursor.execute(query, (taskID, user_id))
-        result = self.cursor.fetchone()
-        if result:
-            is_complete = not result[0]
-            query = "UPDATE tasks SET is_complete = ? WHERE taskID = ? AND user_id = ?"
-            self.execute(query, (is_complete, taskID, user_id))
-        else:
-            print(f"No entry found with taskID: {taskID}")
+        with self.connection():
+            self.cursor.execute(
+                """
+                SELECT is_complete FROM tasks
+                WHERE taskID = ? AND user_id = ?
+                """,
+                (taskID, user_id),
+            )
+            row = self.cursor.fetchone()
 
-    def update_user_info(self, user_id, new_username=None, new_password=None):
-        self.open()
-
-        if new_username is None and new_password is None:
-            self.close()
-            return False  # Nothing to update
-
-        if new_username:
-            query = "UPDATE users SET username = ? WHERE userID = ?"
-            params = (new_username, user_id)
-            self.execute(query, params)
-
-        if new_password:
-            hashed_pw = get_pw_hash(new_password)
-            query = "UPDATE users SET password = ? WHERE userID = ?"
-            params = (hashed_pw, user_id)
-            self.execute(query, params)
-
-        self.close()
-
-        return True
+            if row is not None:
+                self.execute(
+                    """
+                    UPDATE tasks
+                    SET is_complete = ?
+                    WHERE taskID = ? AND user_id = ?
+                    """,
+                    (int(not bool(row[0])), taskID, user_id),
+                )
 
     def get_username_by_id(self, user_id):
-        query = "SELECT username FROM users WHERE userID = ?"
-        self.cursor.execute(query, (user_id,))
-        result = self.cursor.fetchone()
-        return result[0] if result else None
+        with self.connection():
+            self.cursor.execute(
+                "SELECT username FROM users WHERE userID = ?",
+                (user_id,),
+            )
+            row = self.cursor.fetchone()
 
-    def authenticate_user(self, username, password):
-        self.open()
-        self.cursor.execute(
-            "SELECT userID, password FROM users WHERE username = ?",
-            (username,)
-        )
-
-        result = self.cursor.fetchone()
-
-        self.close()
-
-        if result and bcrypt.checkpw(
-            password.encode("utf-8"),
-            result[1]
-        ):
-            return result[0]  # userID
-
-        return None
-
-    
-    def create_session(self, user_id):
-        self.open()
-        
-        token = secrets.token_urlsafe(32)
-        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
-        expires_at = int(time.time()) + (30 * 24 * 60 * 60)
-
-        # Delete any existing sessions for the user before creating a new one
-        self.execute(
-            "DELETE FROM sessions"
-        )
-
-        # delete keyring credentials if it exists to avoid duplicates
-        try:
-            keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
-        except keyring.errors.PasswordDeleteError:
-            pass
-
-        self.execute(
-            "INSERT INTO sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
-            (user_id, token_hash, expires_at)
-        )
-
-        # Store the token using the operating system's secure credential store.
-        keyring.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, token)
-
-        self.close()
-
-        return token
+        return row[0] if row else None
 
     def compare_token(self, candidate_token):
-        self.open()
-
-        #  Return the user ID if the candidate token is valid.
         if not candidate_token:
             return None
 
@@ -312,27 +347,26 @@ class SQLiteConn:
             candidate_token.encode("utf-8")
         ).hexdigest()
 
-        self.cursor.execute(
-            """SELECT user_id, token_hash
-               FROM sessions
-               WHERE expires_at > ?""",
-            (int(time.time()),)
-        )
+        with self.connection():
+            self.cursor.execute(
+                """
+                SELECT user_id, token_hash
+                FROM sessions
+                WHERE expires_at > ?
+                """,
+                (int(time.time()),),
+            )
 
-        for user_id, stored_hash in self.cursor.fetchall():
-            if hmac.compare_digest(candidate_hash, stored_hash):
-                return user_id
-
-        self.close()
+            for user_id, stored_hash in self.cursor.fetchall():
+                if hmac.compare_digest(candidate_hash, stored_hash):
+                    return user_id
 
         return None
 
     def restore_session(self):
-        self.open()
-
         token = keyring.get_password(
             KEYRING_SERVICE,
-            KEYRING_ACCOUNT
+            KEYRING_ACCOUNT,
         )
 
         user_id = self.compare_token(token)
@@ -341,12 +375,10 @@ class SQLiteConn:
             try:
                 keyring.delete_password(
                     KEYRING_SERVICE,
-                    KEYRING_ACCOUNT
+                    KEYRING_ACCOUNT,
                 )
             except keyring.errors.PasswordDeleteError:
                 pass
-
-        self.close()
 
         return user_id
 
@@ -426,23 +458,6 @@ class SQLiteConn:
             return False
         finally:
             self.close()
-
-    def get_security_questions(self, username):
-        self.open()
-
-        self.cursor.execute(
-            """
-            SELECT security_question_1, security_question_2
-            FROM users
-            WHERE username = ?
-            """,
-            (username,)
-        )
-
-        result = self.cursor.fetchone()
-        self.close()
-
-        return result
 
     def reset_password(
         self,
@@ -525,32 +540,54 @@ class SQLiteConn:
         finally:
             self.close()
 
-    def add_task(
-        self,
-        title,
-        date_added,
-        date_due,
-        priority,
-        category,
-        details,
-        user_id,
-        completion=False
-    ):
-        """Add a task for a specific user and return its database ID."""
-        if user_id is None:
-            raise ValueError("user_id must be provided.")
-
-        self.open()
-        try:
-            return self.add_entry(
-                title=title,
-                dateAdded=date_added,
-                dateDue=date_due,
-                priority=priority,
-                category=category,
-                details=details,
-                completion=completion,
-                user_id=user_id,
+    def authenticate_user(self, username, password):
+        with self.connection():
+            self.cursor.execute(
+                """
+                SELECT userID, password
+                FROM users
+                WHERE username = ?
+                """,
+                (username,),
             )
-        finally:
-            self.close()
+            result = self.cursor.fetchone()
+
+        if result is None:
+            return None
+
+        user_id, stored_password = result
+
+        if bcrypt.checkpw(
+            password.encode("utf-8"),
+            stored_password,
+        ):
+            return user_id
+
+        return None
+
+    def create_session(self, user_id):
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        expires_at = int(time.time()) + SESSION_DURATION
+
+        with self.connection():
+            self.execute(
+                "DELETE FROM sessions WHERE user_id = ?",
+                (user_id,),
+            )
+            self.execute(
+                """
+                INSERT INTO sessions
+                    (user_id, token_hash, expires_at)
+                VALUES (?, ?, ?)
+                """,
+                (user_id, token_hash, expires_at),
+            )
+
+        keyring.set_password(
+            KEYRING_SERVICE,
+            KEYRING_ACCOUNT,
+            token,
+        )
+
+        return token

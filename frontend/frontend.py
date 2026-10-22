@@ -65,12 +65,8 @@ class LoginGUI(QMainWindow):
         password = self.ui.line_password.text()
 
         db = self.db_connection
-
-        db.open()
-
         self.user_id = db.authenticate_user(username, password)
 
-        # if the user_id is not None, create a new session and emit the login_successful signal
         if self.user_id is not None:
             db.create_session(self.user_id)
             self.login_successful.emit(self.user_id)
@@ -78,10 +74,8 @@ class LoginGUI(QMainWindow):
         else:
             self.ui.statusbar.showMessage(
                 "Login failed. Please check your username and password.",
-                5000
+                5000,
             )
-
-        db.close()
 
     def clear_credentials(self):
         # clear the username and password fields and reset the user_id
@@ -235,6 +229,7 @@ class MainApp(QMainWindow):
         self.ui.combo_sort.addItem("Date Added", "dateAdded")
         self.ui.combo_sort.addItem("Priority", "priority")
         self.ui.combo_sort.addItem("Title", "title")
+        self.ui.combo_sort.setCurrentIndex(0)
 
     def update_category_filter(self, tasks):
         selected_category = self.ui.combo_category.currentData()
@@ -267,7 +262,7 @@ class MainApp(QMainWindow):
 
         selected_category = self.ui.combo_category.currentData()
         selected_priority = self.ui.combo_priority.currentData()
-        sort_field = self.ui.combo_sort.currentData()
+        sort_field = self.ui.combo_sort.currentData() or "dateDue"
 
         if selected_category is not None:
             tasks = [
@@ -695,37 +690,8 @@ class ForgotPasswordWindow(QMainWindow):
         self.ui.combo_security_question_1.addItems(questions)
         self.ui.combo_security_question_2.addItems(questions)
 
-        self.ui.line_username.editingFinished.connect(
-            self.load_security_questions
-        )
         self.ui.btn_submit.clicked.connect(self.reset_password)
         self.ui.btn_cancel.clicked.connect(self.close)
-
-    @Slot()
-    def load_security_questions(self):
-        # load the security questions for the given username and set them in the combo boxes,
-        # or show an error message if the username is not found
-        username = self.ui.line_username.text().strip()
-
-        if not username:
-            return
-
-        questions = self.db_connection.get_security_questions(username)
-
-        if questions is None:
-            self.status_message.emit(
-                "Username was not found.", 5000
-            )
-            return
-
-        index_1 = self.ui.combo_security_question_1.findText(questions[0])
-        index_2 = self.ui.combo_security_question_2.findText(questions[1])
-
-        if index_1 >= 0:
-            self.ui.combo_security_question_1.setCurrentIndex(index_1)
-
-        if index_2 >= 0:
-            self.ui.combo_security_question_2.setCurrentIndex(index_2)
 
     @Slot()
     def reset_password(self):
