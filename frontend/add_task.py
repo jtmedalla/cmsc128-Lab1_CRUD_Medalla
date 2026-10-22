@@ -23,7 +23,7 @@ class Ui_window_add_task(object):
     def setupUi(self, window_add_task):
         if not window_add_task.objectName():
             window_add_task.setObjectName(u"window_add_task")
-        window_add_task.resize(477, 330)
+        window_add_task.resize(477, 314)
         font = QFont()
         font.setFamilies([u"Arial"])
         window_add_task.setFont(font)
@@ -32,7 +32,7 @@ class Ui_window_add_task(object):
         self.centralwidget.setFont(font)
         self.formLayoutWidget = QWidget(self.centralwidget)
         self.formLayoutWidget.setObjectName(u"formLayoutWidget")
-        self.formLayoutWidget.setGeometry(QRect(10, 10, 461, 291))
+        self.formLayoutWidget.setGeometry(QRect(10, 10, 461, 281))
         self.formLayout = QFormLayout(self.formLayoutWidget)
         self.formLayout.setObjectName(u"formLayout")
         self.formLayout.setContentsMargins(0, 0, 0, 0)
@@ -54,6 +54,7 @@ class Ui_window_add_task(object):
 
         self.line_title = QLineEdit(self.formLayoutWidget)
         self.line_title.setObjectName(u"line_title")
+        self.line_title.setMaxLength(32)
 
         self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.line_title)
 
@@ -84,6 +85,7 @@ class Ui_window_add_task(object):
 
         self.line_category = QLineEdit(self.formLayoutWidget)
         self.line_category.setObjectName(u"line_category")
+        self.line_category.setMaxLength(16)
 
         self.formLayout.setWidget(4, QFormLayout.ItemRole.FieldRole, self.line_category)
 
@@ -116,9 +118,11 @@ class Ui_window_add_task(object):
         window_add_task.setWindowTitle(QCoreApplication.translate("window_add_task", u"MainWindow", None))
         self.lbl_title.setText(QCoreApplication.translate("window_add_task", u"Add Task", None))
         self.lb_title.setText(QCoreApplication.translate("window_add_task", u"Title:", None))
+        self.line_title.setPlaceholderText(QCoreApplication.translate("window_add_task", u"maximum of 32 characters", None))
         self.lbl_date_due.setText(QCoreApplication.translate("window_add_task", u"Date Due:", None))
         self.lbl_priority.setText(QCoreApplication.translate("window_add_task", u"Priority: ", None))
         self.lb_category.setText(QCoreApplication.translate("window_add_task", u"Category: ", None))
+        self.line_category.setPlaceholderText(QCoreApplication.translate("window_add_task", u"maximum of 16 characters", None))
         self.lbl_details.setText(QCoreApplication.translate("window_add_task", u"Details:", None))
         self.btn_add_task.setText(QCoreApplication.translate("window_add_task", u"Add Task", None))
     # retranslateUi
