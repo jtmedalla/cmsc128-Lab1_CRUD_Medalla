@@ -153,28 +153,6 @@ class SQLiteConn:
         self.execute(query, params)
         return self.cursor.lastrowid
 
-    def add_entry(
-        self,
-        title,
-        dateAdded,
-        dateDue,
-        priority,
-        category,
-        details,
-        completion=False,
-        user_id=None,
-    ):
-        with self.connection():
-            return self._add_entry_open(
-                title,
-                dateAdded,
-                dateDue,
-                priority,
-                category,
-                details,
-                completion,
-                user_id,
-            )
 
     def add_task(
         self,
