@@ -280,7 +280,8 @@ class SQLiteConn:
 
         # Delete any existing sessions for the user before creating a new one
         self.execute(
-            "DELETE FROM sessions"
+            "DELETE FROM sessions WHERE user_id = ?",
+            (user_id,)
         )
 
         # delete keyring credentials if it exists to avoid duplicates
@@ -303,29 +304,30 @@ class SQLiteConn:
 
     def compare_token(self, candidate_token):
         self.open()
+        try:
+            if not candidate_token:
+                return None
 
-        #  Return the user ID if the candidate token is valid.
-        if not candidate_token:
+            candidate_hash = hashlib.sha256(
+                candidate_token.encode("utf-8")
+            ).hexdigest()
+
+            self.cursor.execute(
+                """
+                SELECT user_id, token_hash
+                FROM sessions
+                WHERE expires_at > ?
+                """,
+                (int(time.time()),)
+            )
+
+            for user_id, stored_hash in self.cursor.fetchall():
+                if hmac.compare_digest(candidate_hash, stored_hash):
+                    return user_id
+
             return None
-
-        candidate_hash = hashlib.sha256(
-            candidate_token.encode("utf-8")
-        ).hexdigest()
-
-        self.cursor.execute(
-            """SELECT user_id, token_hash
-               FROM sessions
-               WHERE expires_at > ?""",
-            (int(time.time()),)
-        )
-
-        for user_id, stored_hash in self.cursor.fetchall():
-            if hmac.compare_digest(candidate_hash, stored_hash):
-                return user_id
-
-        self.close()
-
-        return None
+        finally:
+            self.close()
 
     def restore_session(self):
         self.open()
