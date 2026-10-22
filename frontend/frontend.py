@@ -98,8 +98,12 @@ class LoginGUI(QMainWindow):
         super().closeEvent(event)
 
 class TaskCard(QFrame):
+    completion_changed = Signal(int, bool)
+
     def __init__(self, current_task, parent=None):
         super().__init__(parent)
+
+        self.task_id = current_task.taskID
 
         self.ui = task_card.Ui_frm_add_task()
         self.ui.setupUi(self)
@@ -120,6 +124,15 @@ class TaskCard(QFrame):
         self.ui.chkbox_is_complete.setChecked(
             bool(current_task.is_complete)
         )
+        self.ui.chkbox_is_complete.stateChanged.connect(
+            self._completion_changed
+        )
+
+    @Slot(int)
+    def _completion_changed(self, state):
+        is_complete = state == Qt.CheckState.Checked.value
+        self.completion_changed.emit(self.task_id, is_complete)
+
 
 class MainApp(QMainWindow):
     log_out = Signal()
@@ -176,7 +189,7 @@ class MainApp(QMainWindow):
             self.task_containers[page].task_layout = container_layout
 
     def display_tasks(self):
-        """Display tasks in the currently selected task tab."""
+        """Display tasks in the appropriate task tab."""
         tasks = self.db_connection.get_tasks_for_user(
             self.user_session.user_id
         ) or []
@@ -193,8 +206,8 @@ class MainApp(QMainWindow):
         )
 
         for page, page_tasks in pages:
-            container = self.task_containers[page]
-            layout = container.task_layout
+            # Use the layout inside the scroll area's container.
+            layout = self.task_containers[page].task_layout
 
             while layout.count():
                 item = layout.takeAt(0)
@@ -204,12 +217,16 @@ class MainApp(QMainWindow):
                     widget.deleteLater()
 
             for current_task in page_tasks:
-                card = TaskCard(current_task, container)
+                card = TaskCard(
+                    current_task,
+                    self.task_containers[page],
+                )
+                card.completion_changed.connect(
+                    self.task_completion_changed
+                )
                 layout.addWidget(card)
 
-            layout.addStretch(1)
-            container.adjustSize()
-            container.update()
+            self.task_containers[page].update()
 
     @staticmethod
     def _set_card_text(card, object_name, value):
@@ -280,6 +297,22 @@ class MainApp(QMainWindow):
     @Slot()
     def task_added_method(self):
         self.add_task_window.close()
+
+    @Slot(int, bool)
+    def task_completion_changed(self, task_id, is_complete):
+        db = self.db_connection
+        db.open()
+
+        try:
+            db.update_entry(
+                taskID=task_id,
+                completion=is_complete,
+                user_id=self.user_session.user_id,
+            )
+        finally:
+            db.close()
+
+        self.display_tasks()
 
 
 class AccountSettingsWindow(QMainWindow):
