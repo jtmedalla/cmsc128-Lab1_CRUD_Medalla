@@ -1,4 +1,4 @@
-from PySide6.QtCore import QDate, Qt, Signal, Slot
+from PySide6.QtCore import QDate, QSignalBlocker, Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
@@ -103,6 +103,12 @@ class TaskCard(QFrame):
     def __init__(self, current_task, parent=None):
         super().__init__(parent)
 
+        priority_names = {
+            1: "Low",
+            2: "Medium",
+            3: "High",
+        }
+
         self.task_id = current_task.taskID
 
         self.ui = task_card.Ui_frm_add_task()
@@ -118,7 +124,9 @@ class TaskCard(QFrame):
         self.ui.lbl_placeholder_title.setText(str(current_task.title))
         self.ui.lbl_placeholder_added.setText(str(current_task.dateAdded))
         self.ui.lbl_placeholder_due.setText(str(current_task.dateDue))
-        self.ui.lbl_placeholder_priority.setText(str(current_task.priority))
+        self.ui.lbl_placeholder_priority.setText(
+            priority_names.get(int(current_task.priority), "Unknown")
+        )
         self.ui.lbl_placeholder_category.setText(str(current_task.category))
         self.ui.lbl_placeholder_details.setText(str(current_task.details))
         self.ui.chkbox_is_complete.setChecked(
@@ -157,42 +165,92 @@ class MainApp(QMainWindow):
         )
         self.ui.btn_add_task.clicked.connect(self.add_task_clicked)
 
+        self.setup_task_filters()
         self.setup_task_tabs()
         self.display_tasks()
 
-    def setup_task_tabs(self):
-        self.task_containers = {}
+    def setup_task_filters(self):
+        self.ui.combo_category.currentIndexChanged.connect(
+            lambda: self.display_tasks()
+        )
+        self.ui.combo_priority.currentIndexChanged.connect(
+            lambda: self.display_tasks()
+        )
+        self.ui.combo_sort.currentIndexChanged.connect(
+            lambda: self.display_tasks()
+        )
 
-        for page in (
-            self.ui.tab_ongoing_tasks,
-            self.ui.tab_completed_tasks,
-        ):
-            page_layout = QVBoxLayout(page)
-            page_layout.setContentsMargins(0, 0, 0, 0)
+        self.ui.combo_priority.addItem("All Priorities", None)
+        self.ui.combo_priority.addItem("Low", 1)
+        self.ui.combo_priority.addItem("Medium", 2)
+        self.ui.combo_priority.addItem("High", 3)
 
-            scroll_area = QScrollArea(page)
-            scroll_area.setWidgetResizable(True)
-            scroll_area.setHorizontalScrollBarPolicy(
-                Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-            )
+        self.ui.combo_sort.addItem("Due Date", "dateDue")
+        self.ui.combo_sort.addItem("Date Added", "dateAdded")
+        self.ui.combo_sort.addItem("Priority", "priority")
+        self.ui.combo_sort.addItem("Title", "title")
 
-            container = QWidget()
-            container_layout = QVBoxLayout(container)
-            container_layout.setContentsMargins(10, 10, 10, 10)
-            container_layout.setSpacing(8)
-            container_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+    def update_category_filter(self, tasks):
+        selected_category = self.ui.combo_category.currentData()
 
-            scroll_area.setWidget(container)
-            page_layout.addWidget(scroll_area)
+        categories = sorted({
+            str(current_task.category)
+            for current_task in tasks
+            if current_task.category
+        })
 
-            self.task_containers[page] = container
-            self.task_containers[page].task_layout = container_layout
+        blocker = QSignalBlocker(self.ui.combo_category)
+        self.ui.combo_category.clear()
+        self.ui.combo_category.addItem("All Categories", None)
+
+        for category in categories:
+            self.ui.combo_category.addItem(category, category)
+
+        index = self.ui.combo_category.findData(selected_category)
+        self.ui.combo_category.setCurrentIndex(max(index, 0))
+
+        del blocker
 
     def display_tasks(self):
-        """Display tasks in the appropriate task tab."""
+        """Display filtered and sorted tasks in the appropriate task tab."""
         tasks = self.db_connection.get_tasks_for_user(
             self.user_session.user_id
         ) or []
+
+        self.update_category_filter(tasks)
+
+        selected_category = self.ui.combo_category.currentData()
+        selected_priority = self.ui.combo_priority.currentData()
+        sort_field = self.ui.combo_sort.currentData()
+
+        if selected_category is not None:
+            tasks = [
+                current_task
+                for current_task in tasks
+                if current_task.category == selected_category
+            ]
+
+        if selected_priority is not None:
+            tasks = [
+                current_task
+                for current_task in tasks
+                if int(current_task.priority) == selected_priority
+            ]
+
+        if sort_field == "priority":
+            tasks.sort(key=lambda current_task: int(current_task.priority))
+        elif sort_field == "title":
+            tasks.sort(
+                key=lambda current_task: str(
+                    current_task.title
+                ).casefold()
+            )
+        else:
+            tasks.sort(
+                key=lambda current_task: str(
+                    getattr(current_task, sort_field)
+                )
+            )
 
         pages = (
             (
@@ -206,7 +264,6 @@ class MainApp(QMainWindow):
         )
 
         for page, page_tasks in pages:
-            # Use the layout inside the scroll area's container.
             layout = self.task_containers[page].task_layout
 
             while layout.count():
@@ -226,7 +283,31 @@ class MainApp(QMainWindow):
                 )
                 layout.addWidget(card)
 
+            layout.addStretch()
             self.task_containers[page].update()
+
+    def setup_task_tabs(self):
+        self.task_containers = {}
+
+        for tab in (
+            self.ui.tab_ongoing_tasks,
+            self.ui.tab_completed_tasks,
+        ):
+            tab_layout = QVBoxLayout(tab)
+            tab_layout.setContentsMargins(0, 0, 0, 0)
+
+            scroll_area = QScrollArea(tab)
+            scroll_area.setWidgetResizable(True)
+
+            container = QWidget()
+            container.task_layout = QVBoxLayout(container)
+            container.task_layout.setContentsMargins(8, 8, 8, 8)
+            container.task_layout.setSpacing(8)
+
+            scroll_area.setWidget(container)
+            tab_layout.addWidget(scroll_area)
+
+            self.task_containers[tab] = container
 
     @staticmethod
     def _set_card_text(card, object_name, value):
