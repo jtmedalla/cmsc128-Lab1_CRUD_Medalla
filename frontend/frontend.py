@@ -65,12 +65,8 @@ class LoginGUI(QMainWindow):
         password = self.ui.line_password.text()
 
         db = self.db_connection
-
-        db.open()
-
         self.user_id = db.authenticate_user(username, password)
 
-        # if the user_id is not None, create a new session and emit the login_successful signal
         if self.user_id is not None:
             db.create_session(self.user_id)
             self.login_successful.emit(self.user_id)
@@ -78,10 +74,8 @@ class LoginGUI(QMainWindow):
         else:
             self.ui.statusbar.showMessage(
                 "Login failed. Please check your username and password.",
-                5000
+                5000,
             )
-
-        db.close()
 
     def clear_credentials(self):
         # clear the username and password fields and reset the user_id
@@ -235,6 +229,7 @@ class MainApp(QMainWindow):
         self.ui.combo_sort.addItem("Date Added", "dateAdded")
         self.ui.combo_sort.addItem("Priority", "priority")
         self.ui.combo_sort.addItem("Title", "title")
+        self.ui.combo_sort.setCurrentIndex(0)
 
     def update_category_filter(self, tasks):
         selected_category = self.ui.combo_category.currentData()
@@ -267,7 +262,7 @@ class MainApp(QMainWindow):
 
         selected_category = self.ui.combo_category.currentData()
         selected_priority = self.ui.combo_priority.currentData()
-        sort_field = self.ui.combo_sort.currentData()
+        sort_field = self.ui.combo_sort.currentData() or "dateDue"
 
         if selected_category is not None:
             tasks = [
