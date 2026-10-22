@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>477</width>
-    <height>330</height>
+    <height>340</height>
    </rect>
   </property>
   <property name="font">
@@ -30,7 +30,7 @@
       <x>10</x>
       <y>10</y>
       <width>461</width>
-      <height>291</height>
+      <height>301</height>
      </rect>
     </property>
     <layout class="QFormLayout" name="formLayout">
@@ -102,9 +102,16 @@
       <widget class="QTextEdit" name="textEdit"/>
      </item>
      <item row="6" column="0" colspan="2">
-      <widget class="QPushButton" name="btn_add_task">
+      <widget class="QPushButton" name="btn_update_task">
        <property name="text">
         <string>Update Task</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0" colspan="2">
+      <widget class="QPushButton" name="btn_delete_task">
+       <property name="text">
+        <string>Delete Task</string>
        </property>
       </widget>
      </item>

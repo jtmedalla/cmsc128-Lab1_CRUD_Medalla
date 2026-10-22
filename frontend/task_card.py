@@ -56,6 +56,11 @@ class Ui_frm_add_task(object):
 
         self.lbl_details = QLabel(self.gridLayoutWidget)
         self.lbl_details.setObjectName(u"lbl_details")
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.lbl_details.sizePolicy().hasHeightForWidth())
+        self.lbl_details.setSizePolicy(sizePolicy2)
 
         self.tasklayout.addWidget(self.lbl_details, 1, 1, 1, 1)
 
@@ -106,16 +111,23 @@ class Ui_frm_add_task(object):
 
         self.lbl_placeholder_details = QLabel(self.gridLayoutWidget)
         self.lbl_placeholder_details.setObjectName(u"lbl_placeholder_details")
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
+        sizePolicy3.setHorizontalStretch(0)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.lbl_placeholder_details.sizePolicy().hasHeightForWidth())
+        self.lbl_placeholder_details.setSizePolicy(sizePolicy3)
+        self.lbl_placeholder_details.setTextFormat(Qt.TextFormat.PlainText)
+        self.lbl_placeholder_details.setWordWrap(True)
 
         self.tasklayout.addWidget(self.lbl_placeholder_details, 2, 1, 2, 1)
 
         self.chkbox_is_complete = QCheckBox(self.gridLayoutWidget)
         self.chkbox_is_complete.setObjectName(u"chkbox_is_complete")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
-        sizePolicy2.setHorizontalStretch(0)
-        sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.chkbox_is_complete.sizePolicy().hasHeightForWidth())
-        self.chkbox_is_complete.setSizePolicy(sizePolicy2)
+        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        sizePolicy4.setHorizontalStretch(0)
+        sizePolicy4.setVerticalStretch(0)
+        sizePolicy4.setHeightForWidth(self.chkbox_is_complete.sizePolicy().hasHeightForWidth())
+        self.chkbox_is_complete.setSizePolicy(sizePolicy4)
         self.chkbox_is_complete.setStyleSheet(u"QCheckBox::indicator{width:16px, height:16px};")
 
         self.tasklayout.addWidget(self.chkbox_is_complete, 1, 0, 2, 1)
@@ -130,8 +142,9 @@ class Ui_frm_add_task(object):
 
         self.lbl_placeholder_category = QLabel(self.gridLayoutWidget)
         self.lbl_placeholder_category.setObjectName(u"lbl_placeholder_category")
-        sizePolicy1.setHeightForWidth(self.lbl_placeholder_category.sizePolicy().hasHeightForWidth())
-        self.lbl_placeholder_category.setSizePolicy(sizePolicy1)
+        sizePolicy2.setHeightForWidth(self.lbl_placeholder_category.sizePolicy().hasHeightForWidth())
+        self.lbl_placeholder_category.setSizePolicy(sizePolicy2)
+        self.lbl_placeholder_category.setWordWrap(True)
 
         self.tasklayout.addWidget(self.lbl_placeholder_category, 3, 3, 1, 1)
 
@@ -145,7 +158,7 @@ class Ui_frm_add_task(object):
         frm_add_task.setWindowTitle(QCoreApplication.translate("frm_add_task", u"Frame", None))
         self.lbl_placeholder_due.setText(QCoreApplication.translate("frm_add_task", u"[12/12/2077]", None))
         self.lbl_placeholder_priority.setText(QCoreApplication.translate("frm_add_task", u"[Medium]", None))
-        self.lbl_details.setText(QCoreApplication.translate("frm_add_task", u"Details:", None))
+        self.lbl_details.setText(QCoreApplication.translate("frm_add_task", u"Details:                                                                                       ", None))
         self.lbl_date_added.setText(QCoreApplication.translate("frm_add_task", u"Date Added:", None))
         self.lbl_priority.setText(QCoreApplication.translate("frm_add_task", u"Priority:", None))
         self.lbl_placeholder_title.setText(QCoreApplication.translate("frm_add_task", u"[Title]", None))

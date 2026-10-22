@@ -1,4 +1,12 @@
-from PySide6.QtCore import QDate, QSignalBlocker, Qt, Signal, Slot
+from PySide6.QtCore import (
+    QDate,
+    QEvent,
+    QSignalBlocker,
+    Qt,
+    Signal,
+    Slot,
+)
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
@@ -13,6 +21,7 @@ from api import sqlite3_api
 from frontend import (
     account_settings_window,
     add_task,
+    edit_task,
     forgot_password_window,
     login_window,
     sign_up_window,
@@ -99,6 +108,7 @@ class LoginGUI(QMainWindow):
 
 class TaskCard(QFrame):
     completion_changed = Signal(int, bool)
+    clicked = Signal(int)
 
     def __init__(self, current_task, parent=None):
         super().__init__(parent)
@@ -154,6 +164,23 @@ class TaskCard(QFrame):
             """
         )
 
+    def eventFilter(self, watched, event):
+        if (
+            watched is not self.ui.chkbox_is_complete
+            and event.type() == QEvent.Type.MouseButtonPress
+            and event.button() == Qt.MouseButton.LeftButton
+        ):
+            self.clicked.emit(self.task_id)
+            return True
+
+        return super().eventFilter(watched, event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self.task_id)
+
+        super().mousePressEvent(event)
+
     @Slot(int)
     def _completion_changed(self, state):
         is_complete = state == Qt.CheckState.Checked.value
@@ -183,8 +210,9 @@ class MainApp(QMainWindow):
         )
         self.ui.btn_add_task.clicked.connect(self.add_task_clicked)
 
-        self.setup_task_filters()
+        # Initialize containers before connecting/populating filters.
         self.setup_task_tabs()
+        self.setup_task_filters()
         self.display_tasks()
 
     def setup_task_filters(self):
@@ -299,6 +327,7 @@ class MainApp(QMainWindow):
                 card.completion_changed.connect(
                     self.task_completion_changed
                 )
+                card.clicked.connect(self.edit_task_clicked)
                 layout.addWidget(card)
 
             layout.addStretch()
@@ -412,6 +441,38 @@ class MainApp(QMainWindow):
             db.close()
 
         self.display_tasks()
+
+    @Slot(int)
+    def edit_task_clicked(self, task_id):
+        self.db_connection.open()
+
+        try:
+            current_task = self.db_connection.fetch_entry_by_id(
+                task_id,
+                self.user_session.user_id,
+            )
+        finally:
+            self.db_connection.close()
+
+        if current_task is None:
+            return
+
+        self.setEnabled(False)
+
+        self.edit_task_window = EditTaskWindow(
+            current_task,
+            self.user_session,
+        )
+        self.edit_task_window.closed.connect(
+            self.edit_task_window_closed
+        )
+        self.edit_task_window.show()
+
+    @Slot()
+    def edit_task_window_closed(self):
+        self.display_tasks()
+        self.setEnabled(True)
+        self.activateWindow()
 
 
 class AccountSettingsWindow(QMainWindow):
@@ -726,6 +787,8 @@ class AddTaskWindow(QMainWindow):
         self.ui = add_task.Ui_window_add_task()
         self.ui.setupUi(self)
 
+        self.ui.date_date_due.setDate(QDate.currentDate())
+
         self.user_session = user_session
         self.db_connection = user_session.db_connection
 
@@ -766,6 +829,90 @@ class AddTaskWindow(QMainWindow):
             return
 
         self.task_added.emit()
+        self.close()
+
+    def closeEvent(self, event):
+        self.closed.emit()
+        super().closeEvent(event)
+
+class EditTaskWindow(QMainWindow):
+    closed = Signal()
+
+    def __init__(self, current_task, user_session):
+        super().__init__()
+
+        self.ui = edit_task.Ui_window_add_task()
+        self.ui.setupUi(self)
+
+        self.current_task = current_task
+        self.user_session = user_session
+        self.db_connection = user_session.db_connection
+
+        self.ui.line_title.setText(str(current_task.title))
+        self.ui.date_date_due.setDate(
+            QDate.fromString(str(current_task.dateDue), "yyyy-MM-dd")
+        )
+        self.ui.cmb_priority.addItem("Low", 1)
+        self.ui.cmb_priority.addItem("Medium", 2)
+        self.ui.cmb_priority.addItem("High", 3)
+
+        priority_index = self.ui.cmb_priority.findData(
+            int(current_task.priority)
+        )
+        self.ui.cmb_priority.setCurrentIndex(priority_index)
+
+        self.ui.line_category.setText(str(current_task.category))
+        self.ui.textEdit.setPlainText(str(current_task.details))
+
+        self.ui.btn_update_task.clicked.connect(self.update_task)
+        self.ui.btn_delete_task.clicked.connect(self.delete_task)
+
+    @Slot()
+    def update_task(self):
+        title = self.ui.line_title.text().strip()
+        category = self.ui.line_category.text().strip()
+        details = self.ui.textEdit.toPlainText().strip()
+
+        if not title:
+            self.ui.statusbar.showMessage(
+                "Task title is required.",
+                5000,
+            )
+            return
+
+        db = self.db_connection
+        db.open()
+
+        try:
+            db.update_entry(
+                taskID=self.current_task.taskID,
+                title=title,
+                dateDue=self.ui.date_date_due.date().toString(
+                    "yyyy-MM-dd"
+                ),
+                priority=self.ui.cmb_priority.currentData(),
+                category=category,
+                details=details,
+                user_id=self.user_session.user_id,
+            )
+        finally:
+            db.close()
+
+        self.close()
+
+    @Slot()
+    def delete_task(self):
+        db = self.db_connection
+        db.open()
+
+        try:
+            db.remove_entry(
+                self.current_task.taskID,
+                self.user_session.user_id,
+            )
+        finally:
+            db.close()
+
         self.close()
 
     def closeEvent(self, event):

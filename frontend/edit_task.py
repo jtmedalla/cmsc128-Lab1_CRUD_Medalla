@@ -23,7 +23,7 @@ class Ui_window_add_task(object):
     def setupUi(self, window_add_task):
         if not window_add_task.objectName():
             window_add_task.setObjectName(u"window_add_task")
-        window_add_task.resize(477, 330)
+        window_add_task.resize(477, 340)
         font = QFont()
         font.setFamilies([u"Arial"])
         window_add_task.setFont(font)
@@ -32,7 +32,7 @@ class Ui_window_add_task(object):
         self.centralwidget.setFont(font)
         self.formLayoutWidget = QWidget(self.centralwidget)
         self.formLayoutWidget.setObjectName(u"formLayoutWidget")
-        self.formLayoutWidget.setGeometry(QRect(10, 10, 461, 291))
+        self.formLayoutWidget.setGeometry(QRect(10, 10, 461, 301))
         self.formLayout = QFormLayout(self.formLayoutWidget)
         self.formLayout.setObjectName(u"formLayout")
         self.formLayout.setContentsMargins(0, 0, 0, 0)
@@ -97,10 +97,15 @@ class Ui_window_add_task(object):
 
         self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.textEdit)
 
-        self.btn_add_task = QPushButton(self.formLayoutWidget)
-        self.btn_add_task.setObjectName(u"btn_add_task")
+        self.btn_update_task = QPushButton(self.formLayoutWidget)
+        self.btn_update_task.setObjectName(u"btn_update_task")
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.SpanningRole, self.btn_add_task)
+        self.formLayout.setWidget(6, QFormLayout.ItemRole.SpanningRole, self.btn_update_task)
+
+        self.btn_delete_task = QPushButton(self.formLayoutWidget)
+        self.btn_delete_task.setObjectName(u"btn_delete_task")
+
+        self.formLayout.setWidget(7, QFormLayout.ItemRole.SpanningRole, self.btn_delete_task)
 
         window_add_task.setCentralWidget(self.centralwidget)
         self.statusbar = QStatusBar(window_add_task)
@@ -120,6 +125,7 @@ class Ui_window_add_task(object):
         self.lbl_priority.setText(QCoreApplication.translate("window_add_task", u"Priority: ", None))
         self.lb_category.setText(QCoreApplication.translate("window_add_task", u"Category: ", None))
         self.lbl_details.setText(QCoreApplication.translate("window_add_task", u"Details:", None))
-        self.btn_add_task.setText(QCoreApplication.translate("window_add_task", u"Update Task", None))
+        self.btn_update_task.setText(QCoreApplication.translate("window_add_task", u"Update Task", None))
+        self.btn_delete_task.setText(QCoreApplication.translate("window_add_task", u"Delete Task", None))
     # retranslateUi
 
