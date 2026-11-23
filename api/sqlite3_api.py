@@ -1,10 +1,10 @@
 import hashlib
 import hmac
-import os
 import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
+from pathlib import Path
 
 import bcrypt
 import keyring
@@ -41,7 +41,12 @@ class SQLiteConn:
 
     # open the connection to the database
     def open(self):
-        self.conn = sqlite3.connect(os.path.dirname(os.path.dirname(__file__)) + "/data/todolist.db")
+        database_path = (
+            Path(__file__).resolve().parent.parent / "data" / "todolist.db"
+        )
+        database_path.parent.mkdir(parents=True, exist_ok=True)
+
+        self.conn = sqlite3.connect(database_path)
         self.cursor = self.conn.cursor()
 
         # create the users table if it doesn't exist
