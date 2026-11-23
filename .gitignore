@@ -6,3 +6,12 @@
 
 # ignore virtual environment files
 /.venv
+
+# ignore dist files
+/dist/*
+
+# ignore build files
+/build/*
+
+# ignore spec files main.spec
+main.spec
