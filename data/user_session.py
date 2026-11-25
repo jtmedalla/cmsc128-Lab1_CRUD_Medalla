@@ -15,7 +15,4 @@ class UserSession:
     def get_username(self):
         if self.user_id is None:
             return None
-        self.db_connection.open()
-        username = self.db_connection.get_username_by_id(self.user_id)
-        self.db_connection.close()
-        return username
+        return self.db_connection.get_username_by_id(self.user_id)
