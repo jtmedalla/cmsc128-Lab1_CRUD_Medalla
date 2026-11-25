@@ -1,5 +1,4 @@
 import hashlib
-import hmac
 import secrets
 import sqlite3
 import time
@@ -360,18 +359,15 @@ class SQLiteConn:
             cursor = self._open_cursor
             cursor.execute(
                 """
-                SELECT user_id, token_hash
+                SELECT user_id
                 FROM sessions
-                WHERE expires_at > ?
+                WHERE token_hash = ? AND expires_at > ?
                 """,
-                (int(time.time()),),
+                (candidate_hash, int(time.time())),
             )
+            row = cursor.fetchone()
 
-            for user_id, stored_hash in cursor.fetchall():
-                if hmac.compare_digest(candidate_hash, stored_hash):
-                    return user_id
-
-        return None
+        return row[0] if row else None
 
     def restore_session(self):
         token = keyring.get_password(
