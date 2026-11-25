@@ -604,7 +604,7 @@ class AccountSettingsWindow(QMainWindow):
         super().closeEvent(event)
 
 class SignUpWindow(QMainWindow):
-    signup_successful = Signal()
+    signup_successful = Signal(int)
     closed = Signal()
 
     def __init__(self, db_connection=None):
@@ -710,8 +710,17 @@ class SignUpWindow(QMainWindow):
             5000
         )
 
+        user_id = self.db_connection.authenticate_user(username, password)
+        if user_id is None:
+            self.ui.statusbar.showMessage(
+                "Account created, but automatic login failed.",
+                5000,
+            )
+            return
+
+        self.db_connection.create_session(user_id)
         self._signup_completed = True
-        self.signup_successful.emit()
+        self.signup_successful.emit(user_id)
         self.close()
 
     def closeEvent(self, event):

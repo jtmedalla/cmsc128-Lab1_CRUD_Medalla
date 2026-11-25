@@ -107,21 +107,13 @@ class Application:
         self.login_window.show()
 
     @Slot()
-    def successful_signup(self, username, password):
-        # called when a new user signs up successfully
-        user_id = self.db.authenticate_user(username, password)
-
-        if user_id is not None:
-            self.show_login_window()
-
-    @Slot()
     def show_create_account_window(self):
         # shows the create account window and hides the login window
         self.login_window.hide()
 
         self.create_account_window = SignUpWindow(self.db)
         self.create_account_window.signup_successful.connect(
-            self.show_login_window
+            self.show_main_app
         )
         self.create_account_window.closed.connect(
             self.login_window.show
