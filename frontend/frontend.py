@@ -6,7 +6,6 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
@@ -424,30 +423,20 @@ class MainApp(QMainWindow):
     @Slot(int, bool)
     def task_completion_changed(self, task_id, is_complete):
         db = self.db_connection
-        db.open()
-
-        try:
-            db.update_entry(
-                taskID=task_id,
-                completion=is_complete,
-                user_id=self.user_session.user_id,
-            )
-        finally:
-            db.close()
+        db.update_entry(
+            taskID=task_id,
+            completion=is_complete,
+            user_id=self.user_session.user_id,
+        )
 
         self.display_tasks()
 
     @Slot(int)
     def edit_task_clicked(self, task_id):
-        self.db_connection.open()
-
-        try:
-            current_task = self.db_connection.fetch_entry_by_id(
-                task_id,
-                self.user_session.user_id,
-            )
-        finally:
-            self.db_connection.close()
+        current_task = self.db_connection.fetch_entry_by_id(
+            task_id,
+            self.user_session.user_id,
+        )
 
         if current_task is None:
             return
@@ -503,7 +492,6 @@ class AccountSettingsWindow(QMainWindow):
             return
 
         db = self.db_connection
-        db.open()
 
         # authenticate the user with the old password and show an error message if it is incorrect
         is_authenticated = db.authenticate_user(
@@ -513,7 +501,6 @@ class AccountSettingsWindow(QMainWindow):
 
         if not is_authenticated:
             self.status_message.emit("Old password is incorrect.", 5000)
-            db.close()
             return
 
         # check if the username is already taken by another user
@@ -525,7 +512,6 @@ class AccountSettingsWindow(QMainWindow):
                 "Username already exists. Please choose another username.",
                 5000
             )
-            db.close()
             return
 
         if db.update_user_info(
@@ -539,7 +525,6 @@ class AccountSettingsWindow(QMainWindow):
             )
             self.updated_successfully.emit()
 
-        db.close()
         self.close()
 
     @Slot()
@@ -847,37 +832,27 @@ class EditTaskWindow(QMainWindow):
             return
 
         db = self.db_connection
-        db.open()
-
-        try:
-            db.update_entry(
-                taskID=self.current_task.taskID,
-                title=title,
-                dateDue=self.ui.date_date_due.date().toString(
-                    "yyyy-MM-dd"
-                ),
-                priority=self.ui.cmb_priority.currentData(),
-                category=category,
-                details=details,
-                user_id=self.user_session.user_id,
-            )
-        finally:
-            db.close()
+        db.update_entry(
+            taskID=self.current_task.taskID,
+            title=title,
+            dateDue=self.ui.date_date_due.date().toString(
+                "yyyy-MM-dd"
+            ),
+            priority=self.ui.cmb_priority.currentData(),
+            category=category,
+            details=details,
+            user_id=self.user_session.user_id,
+        )
 
         self.close()
 
     @Slot()
     def delete_task(self):
         db = self.db_connection
-        db.open()
-
-        try:
-            db.remove_entry(
-                self.current_task.taskID,
-                self.user_session.user_id,
-            )
-        finally:
-            db.close()
+        db.remove_entry(
+            self.current_task.taskID,
+            self.user_session.user_id,
+        )
 
         self.close()
 

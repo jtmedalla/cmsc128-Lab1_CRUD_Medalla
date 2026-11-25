@@ -31,7 +31,6 @@ class Application:
         database_exists = os.path.exists(database_path)
 
         self.db = SQLiteConn()
-        self.db.open()
 
         self.app = QApplication([])
 
@@ -45,8 +44,6 @@ class Application:
         self.login_window.forgot_password_requested.connect(
             self.show_forgot_password_window
         )
-
-        self.db.close()
 
         # check if database exists, or if no user is logged in and show appropriate window
         if database_exists:
@@ -112,9 +109,7 @@ class Application:
     @Slot()
     def successful_signup(self, username, password):
         # called when a new user signs up successfully
-        self.db.open()
         user_id = self.db.authenticate_user(username, password)
-        self.db.close()
 
         if user_id is not None:
             self.show_login_window()
