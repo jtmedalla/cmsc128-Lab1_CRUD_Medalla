@@ -582,11 +582,12 @@ class SQLiteConn:
         expires_at = int(time.time()) + SESSION_DURATION
 
         with self.connection():
-            self.execute(
+            cursor = self._open_cursor
+            cursor.execute(
                 "DELETE FROM sessions WHERE user_id = ?",
                 (user_id,),
             )
-            self.execute(
+            cursor.execute(
                 """
                 INSERT INTO sessions
                     (user_id, token_hash, expires_at)
@@ -594,6 +595,7 @@ class SQLiteConn:
                 """,
                 (user_id, token_hash, expires_at),
             )
+            self._open_connection.commit()
 
         keyring.set_password(
             KEYRING_SERVICE,
