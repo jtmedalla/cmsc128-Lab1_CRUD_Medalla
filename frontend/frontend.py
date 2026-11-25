@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from PySide6.QtCore import (
     QDate,
     QEvent,
@@ -102,21 +104,19 @@ class LoginGUI(QMainWindow):
 class TaskCard(QFrame):
     completion_changed = Signal(int, bool)
     clicked = Signal(int)
+    priority_names: ClassVar[dict[int, str]] = {
+        1: "Low",
+        2: "Medium",
+        3: "High",
+    }
+    priority_colors: ClassVar[dict[int, str]] = {
+        1: "#D9F2D9",
+        2: "#FFF2CC",
+        3: "#F4CCCC",
+    }
 
     def __init__(self, current_task, parent=None):
         super().__init__(parent)
-
-        priority_names = {
-            1: "Low",
-            2: "Medium",
-            3: "High",
-        }
-
-        priority_colors = {
-            1: "#D9F2D9",  # pastel green - Low
-            2: "#FFF2CC",  # pastel yellow - Medium
-            3: "#F4CCCC",  # pastel red - High
-        }
 
         self.task_id = current_task.taskID
 
@@ -130,26 +130,35 @@ class TaskCard(QFrame):
             QSizePolicy.Policy.Fixed,
         )
 
+        self.ui.chkbox_is_complete.stateChanged.connect(
+            self._completion_changed
+        )
+        self.update_task(current_task)
+
+    def update_task(self, current_task):
         self.ui.lbl_placeholder_title.setText(str(current_task.title))
         self.ui.lbl_placeholder_added.setText(str(current_task.dateAdded))
         self.ui.lbl_placeholder_due.setText(str(current_task.dateDue))
         self.ui.lbl_placeholder_priority.setText(
-            priority_names.get(int(current_task.priority), "Unknown")
+            self.priority_names.get(int(current_task.priority), "Unknown")
         )
         self.ui.lbl_placeholder_category.setText(str(current_task.category))
         self.ui.lbl_placeholder_details.setText(str(current_task.details))
+
+        blocker = QSignalBlocker(self.ui.chkbox_is_complete)
         self.ui.chkbox_is_complete.setChecked(
             bool(current_task.is_complete)
         )
-        self.ui.chkbox_is_complete.stateChanged.connect(
-            self._completion_changed
-        )
+        del blocker
 
         self.setStyleSheet(
             f"""
             QFrame {{
                 background-color: {
-                    priority_colors.get(int(current_task.priority), "#FFFFFF")
+                    self.priority_colors.get(
+                        int(current_task.priority),
+                        "#FFFFFF",
+                    )
                 };
                 border: 1px solid #D0D0D0;
                 border-radius: 8px;
@@ -190,6 +199,8 @@ class MainApp(QMainWindow):
         self.ui.setupUi(self)
         self.user_session = user_session
         self.db_connection = user_session.db_connection
+        self.tasks = []
+        self.task_cards = {}
 
         self.initialize_content()
 
@@ -206,7 +217,7 @@ class MainApp(QMainWindow):
         # Initialize containers before connecting/populating filters.
         self.setup_task_tabs()
         self.setup_task_filters()
-        self.display_tasks()
+        self.refresh_tasks()
 
     def setup_task_filters(self):
         self.ui.combo_category.currentIndexChanged.connect(
@@ -251,31 +262,66 @@ class MainApp(QMainWindow):
 
         del blocker
 
-    def display_tasks(self):
-        """Display filtered and sorted tasks in the appropriate task tab."""
-        tasks = self.db_connection.get_tasks_for_user(
+    def refresh_tasks(self):
+        """Reload task data and reconcile persistent cards with the database."""
+        self.tasks = self.db_connection.get_tasks_for_user(
             self.user_session.user_id
         ) or []
+        tasks_by_id = {
+            current_task.taskID: current_task
+            for current_task in self.tasks
+        }
 
-        self.update_category_filter(tasks)
+        self.update_category_filter(self.tasks)
 
-        selected_category = self.ui.combo_category.currentData()
-        selected_priority = self.ui.combo_priority.currentData()
+        removed_task_ids = set(self.task_cards) - set(tasks_by_id)
+        for task_id in removed_task_ids:
+            card = self.task_cards.pop(task_id)
+            for container in self.task_containers.values():
+                container.task_layout.removeWidget(card)
+            card.deleteLater()
+
+        for current_task in self.tasks:
+            task_id = current_task.taskID
+            is_complete = bool(current_task.is_complete)
+            target_tab = (
+                self.ui.tab_completed_tasks
+                if is_complete
+                else self.ui.tab_ongoing_tasks
+            )
+            target_container = self.task_containers[target_tab]
+            target_layout = target_container.task_layout
+            card = self.task_cards.get(task_id)
+
+            if card is None:
+                card = TaskCard(current_task, target_container)
+                card.completion_changed.connect(
+                    self.task_completion_changed
+                )
+                card.clicked.connect(self.edit_task_clicked)
+                self.task_cards[task_id] = card
+                target_layout.insertWidget(
+                    max(target_layout.count() - 1, 0),
+                    card,
+                )
+            else:
+                card.update_task(current_task)
+                if card.parentWidget() is not target_container:
+                    for container in self.task_containers.values():
+                        container.task_layout.removeWidget(card)
+                    card.setParent(target_container)
+                    target_layout.insertWidget(
+                        max(target_layout.count() - 1, 0),
+                        card,
+                    )
+
+        self.display_tasks()
+
+    def display_tasks(self):
+        """Apply current filters and ordering to cached task cards."""
+        tasks = list(self.tasks)
+
         sort_field = self.ui.combo_sort.currentData() or "dateDue"
-
-        if selected_category is not None:
-            tasks = [
-                current_task
-                for current_task in tasks
-                if current_task.category == selected_category
-            ]
-
-        if selected_priority is not None:
-            tasks = [
-                current_task
-                for current_task in tasks
-                if int(current_task.priority) == selected_priority
-            ]
 
         if sort_field == "priority":
             tasks.sort(key=lambda current_task: int(current_task.priority))
@@ -292,40 +338,53 @@ class MainApp(QMainWindow):
                 )
             )
 
-        pages = (
-            (
-                self.ui.tab_ongoing_tasks,
-                [item for item in tasks if not item.is_complete],
-            ),
-            (
-                self.ui.tab_completed_tasks,
-                [item for item in tasks if item.is_complete],
-            ),
-        )
+        selected_category = self.ui.combo_category.currentData()
+        selected_priority = self.ui.combo_priority.currentData()
 
-        for page, page_tasks in pages:
-            layout = self.task_containers[page].task_layout
+        for tab, is_complete in (
+            (self.ui.tab_ongoing_tasks, False),
+            (self.ui.tab_completed_tasks, True),
+        ):
+            page_tasks = [
+                current_task
+                for current_task in tasks
+                if bool(current_task.is_complete) == is_complete
+            ]
+            visible_task_ids = {
+                current_task.taskID
+                for current_task in page_tasks
+                if (
+                    selected_category is None
+                    or current_task.category == selected_category
+                )
+                and (
+                    selected_priority is None
+                    or int(current_task.priority) == selected_priority
+                )
+            }
+            cards = [
+                self.task_cards[current_task.taskID]
+                for current_task in page_tasks
+            ]
+            layout = self.task_containers[tab].task_layout
+            current_cards = [
+                layout.itemAt(index).widget()
+                for index in range(layout.count())
+                if layout.itemAt(index).widget() is not None
+            ]
 
-            while layout.count():
-                item = layout.takeAt(0)
-                widget = item.widget()
-
-                if widget is not None:
-                    widget.deleteLater()
+            if current_cards != cards:
+                for card in current_cards:
+                    layout.removeWidget(card)
+                for index, card in enumerate(cards):
+                    layout.insertWidget(index, card)
 
             for current_task in page_tasks:
-                card = TaskCard(
-                    current_task,
-                    self.task_containers[page],
+                self.task_cards[current_task.taskID].setVisible(
+                    current_task.taskID in visible_task_ids
                 )
-                card.completion_changed.connect(
-                    self.task_completion_changed
-                )
-                card.clicked.connect(self.edit_task_clicked)
-                layout.addWidget(card)
 
-            layout.addStretch()
-            self.task_containers[page].update()
+            self.task_containers[tab].update()
 
     def setup_task_tabs(self):
         self.task_containers = {}
@@ -344,6 +403,7 @@ class MainApp(QMainWindow):
             container.task_layout = QVBoxLayout(container)
             container.task_layout.setContentsMargins(8, 8, 8, 8)
             container.task_layout.setSpacing(8)
+            container.task_layout.addStretch()
 
             scroll_area.setWidget(container)
             tab_layout.addWidget(scroll_area)
@@ -412,7 +472,7 @@ class MainApp(QMainWindow):
 
     @Slot()
     def add_task_window_closed(self):
-        self.display_tasks()
+        self.refresh_tasks()
         self.setEnabled(True)
         self.activateWindow()
 
@@ -429,7 +489,7 @@ class MainApp(QMainWindow):
             user_id=self.user_session.user_id,
         )
 
-        self.display_tasks()
+        self.refresh_tasks()
 
     @Slot(int)
     def edit_task_clicked(self, task_id):
@@ -454,7 +514,7 @@ class MainApp(QMainWindow):
 
     @Slot()
     def edit_task_window_closed(self):
-        self.display_tasks()
+        self.refresh_tasks()
         self.setEnabled(True)
         self.activateWindow()
 
