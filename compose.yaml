@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      DISPLAY: ${DISPLAY}
+      XAUTHORITY: /tmp/.Xauthority
+      QT_X11_NO_MITSHM: "1"
+      PYTHON_KEYRING_BACKEND: keyring.backends.null.Keyring
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - "${XAUTHORITY:-${HOME}/.Xauthority}:/tmp/.Xauthority:ro"
+      - ./data:/app/data
