@@ -8,6 +8,7 @@ from pathlib import Path
 
 import bcrypt
 import keyring
+from keyring.errors import PasswordDeleteError
 
 from data import task
 
@@ -20,6 +21,9 @@ SECURITY_QUESTIONS = (
     "What was the name of your elementary school?",
 )
 SESSION_DURATION = 30 * 24 * 60 * 60  # 30 days in seconds
+DATABASE_PATH = (
+    Path(__file__).resolve().parent.parent / "data" / "todolist.db"
+)
 
 
 def get_pw_hash(password):
@@ -34,23 +38,23 @@ def hash_answer(answer):
 
 
 class SQLiteConn:
+    _schema_initialized = False
 
     def __init__(self):
-        self.conn = None
-        self.cursor = None
+        self.conn: sqlite3.Connection | None = None
+        self.cursor: sqlite3.Cursor | None = None
+        if not SQLiteConn._schema_initialized:
+            self._initialize_schema()
+            SQLiteConn._schema_initialized = True
 
-    # open the connection to the database
-    def open(self):
-        database_path = (
-            Path(__file__).resolve().parent.parent / "data" / "todolist.db"
-        )
-        database_path.parent.mkdir(parents=True, exist_ok=True)
+    def _initialize_schema(self):
+        DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(DATABASE_PATH)
 
-        self.conn = sqlite3.connect(database_path)
-        self.cursor = self.conn.cursor()
+        try:
+            cursor = connection.cursor()
 
-        # create the users table if it doesn't exist
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+            cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                                 userID INTEGER PRIMARY KEY AUTOINCREMENT,
                                 username TEXT NOT NULL UNIQUE,
                                 password TEXT NOT NULL,
@@ -60,8 +64,7 @@ class SQLiteConn:
                                 security_answer_2 BLOB
                             )''')
 
-        # Create the tasks table if it doesn't exist
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS tasks (
+            cursor.execute('''CREATE TABLE IF NOT EXISTS tasks (
                                 taskID INTEGER PRIMARY KEY AUTOINCREMENT,
                                 title TEXT NOT NULL,
                                 dateAdded TEXT NOT NULL,
@@ -73,52 +76,71 @@ class SQLiteConn:
                                 user_id INTEGER NOT NULL,
                                 FOREIGN KEY (user_id) REFERENCES users(userID)
                             )''')
-        
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS sessions (
+
+            cursor.execute('''CREATE TABLE IF NOT EXISTS sessions (
                                 sessionID INTEGER PRIMARY KEY AUTOINCREMENT,
                                 user_id INTEGER NOT NULL,
                                 token_hash TEXT NOT NULL UNIQUE,
                                 expires_at INTEGER NOT NULL,
                                 FOREIGN KEY (user_id) REFERENCES users(userID)
                             )''')
-        
-        
-        columns = {
-            "security_question_1": "TEXT",
-            "security_answer_1": "BLOB",
-            "security_question_2": "TEXT",
-            "security_answer_2": "BLOB",
-        }
 
-        existing_columns = {
-            row[1]
-            for row in self.cursor.execute("PRAGMA table_info(users)")
-        }
+            columns = {
+                "security_question_1": "TEXT",
+                "security_answer_1": "BLOB",
+                "security_question_2": "TEXT",
+                "security_answer_2": "BLOB",
+            }
 
-        for column, data_type in columns.items():
-            if column not in existing_columns:
-                self.cursor.execute(
-                    f"ALTER TABLE users ADD COLUMN {column} {data_type}"
-                )
+            existing_columns = {
+                row[1]
+                for row in cursor.execute("PRAGMA table_info(users)")
+            }
 
-        self.conn.commit()
+            for column, data_type in columns.items():
+                if column not in existing_columns:
+                    cursor.execute(
+                        f"ALTER TABLE users ADD COLUMN {column} {data_type}"
+                    )
+
+            connection.commit()
+        finally:
+            connection.close()
+
+    # open the connection to the database
+    def open(self):
+        self.conn = sqlite3.connect(DATABASE_PATH)
+        self.cursor = self.conn.cursor()
+
+    @property
+    def _open_connection(self) -> sqlite3.Connection:
+        if self.conn is None:
+            raise RuntimeError("Database connection is not open")
+        return self.conn
+
+    @property
+    def _open_cursor(self) -> sqlite3.Cursor:
+        if self.cursor is None:
+            raise RuntimeError("Database cursor is not open")
+        return self.cursor
 
     # close the connection to the database
     def close(self):
-        if self.cursor:
+        if self.cursor is not None:
             self.cursor.close()
             self.cursor = None
-        if self.conn:
+        if self.conn is not None:
             self.conn.close()
             self.conn = None
 
     # execute the query 
     def execute(self, query, params=None):
+        cursor = self._open_cursor
         if params is None:
-            self.cursor.execute(query)
+            cursor.execute(query)
         else:
-            self.cursor.execute(query, params)
-        self.conn.commit()
+            cursor.execute(query, params)
+        self._open_connection.commit()
 
     @contextmanager
     def connection(self):
@@ -156,7 +178,7 @@ class SQLiteConn:
             user_id,
         )
         self.execute(query, params)
-        return self.cursor.lastrowid
+        return self._open_cursor.lastrowid
 
 
     def add_task(
@@ -251,11 +273,12 @@ class SQLiteConn:
     # fetch all entries from the database. returns a list or None
     def fetch_all_entries(self, user_id):
         with self.connection():
-            self.cursor.execute(
+            cursor = self._open_cursor
+            cursor.execute(
                 "SELECT * FROM tasks WHERE user_id = ?",
                 (user_id,),
             )
-            rows = self.cursor.fetchall()
+            rows = cursor.fetchall()
 
         results = []
         for row in rows:
@@ -271,14 +294,15 @@ class SQLiteConn:
     # fetch an entry from the database by its ID. returns a Task object or None
     def fetch_entry_by_id(self, taskID, user_id):
         with self.connection():
-            self.cursor.execute(
+            cursor = self._open_cursor
+            cursor.execute(
                 """
                 SELECT * FROM tasks
                 WHERE taskID = ? AND user_id = ?
                 """,
                 (taskID, user_id),
             )
-            row = self.cursor.fetchone()
+            row = cursor.fetchone()
 
         if not row:
             return None
@@ -293,14 +317,15 @@ class SQLiteConn:
     # toggle the completion status of an entry
     def toggle_entry_completion(self, taskID, user_id):
         with self.connection():
-            self.cursor.execute(
+            cursor = self._open_cursor
+            cursor.execute(
                 """
                 SELECT is_complete FROM tasks
                 WHERE taskID = ? AND user_id = ?
                 """,
                 (taskID, user_id),
             )
-            row = self.cursor.fetchone()
+            row = cursor.fetchone()
 
             if row is not None:
                 self.execute(
@@ -314,11 +339,12 @@ class SQLiteConn:
 
     def get_username_by_id(self, user_id):
         with self.connection():
-            self.cursor.execute(
+            cursor = self._open_cursor
+            cursor.execute(
                 "SELECT username FROM users WHERE userID = ?",
                 (user_id,),
             )
-            row = self.cursor.fetchone()
+            row = cursor.fetchone()
 
         return row[0] if row else None
 
@@ -331,7 +357,8 @@ class SQLiteConn:
         ).hexdigest()
 
         with self.connection():
-            self.cursor.execute(
+            cursor = self._open_cursor
+            cursor.execute(
                 """
                 SELECT user_id, token_hash
                 FROM sessions
@@ -340,7 +367,7 @@ class SQLiteConn:
                 (int(time.time()),),
             )
 
-            for user_id, stored_hash in self.cursor.fetchall():
+            for user_id, stored_hash in cursor.fetchall():
                 if hmac.compare_digest(candidate_hash, stored_hash):
                     return user_id
 
@@ -360,7 +387,7 @@ class SQLiteConn:
                     KEYRING_SERVICE,
                     KEYRING_ACCOUNT,
                 )
-            except keyring.errors.PasswordDeleteError:
+            except PasswordDeleteError:
                 pass
 
         return user_id
@@ -379,7 +406,7 @@ class SQLiteConn:
 
             try:
                 keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
-            except keyring.errors.PasswordDeleteError:
+            except PasswordDeleteError:
                 pass
 
         self.close()
@@ -394,9 +421,10 @@ class SQLiteConn:
             query += " AND userID != ?"
             params.append(exclude_user_id)
 
-        self.cursor.execute(query, params)
+        cursor = self._open_cursor
+        cursor.execute(query, params)
 
-        return_val = self.cursor.fetchone() is not None
+        return_val = cursor.fetchone() is not None
 
         self.close()
 
@@ -414,7 +442,8 @@ class SQLiteConn:
         self.open()
 
         try:
-            self.cursor.execute(
+            cursor = self._open_cursor
+            cursor.execute(
                 """
                 INSERT INTO users (
                     username,
@@ -435,7 +464,7 @@ class SQLiteConn:
                     hash_answer(answer_2),
                 )
             )
-            self.conn.commit()
+            self._open_connection.commit()
             return True
         except sqlite3.IntegrityError:
             return False
@@ -451,7 +480,8 @@ class SQLiteConn:
     ):
         self.open()
 
-        self.cursor.execute(
+        cursor = self._open_cursor
+        cursor.execute(
             """
             SELECT security_answer_1, security_answer_2
             FROM users
@@ -460,7 +490,7 @@ class SQLiteConn:
             (username,)
         )
 
-        result = self.cursor.fetchone()
+        result = cursor.fetchone()
 
         if result is None or result[0] is None or result[1] is None:
             self.close()
@@ -481,11 +511,11 @@ class SQLiteConn:
             self.close()
             return False
 
-        self.cursor.execute(
+        cursor.execute(
             "UPDATE users SET password = ? WHERE username = ?",
             (get_pw_hash(new_password), username)
         )
-        self.conn.commit()
+        self._open_connection.commit()
         self.close()
 
         return True
@@ -498,7 +528,8 @@ class SQLiteConn:
         self.open()
 
         try:
-            self.cursor.execute(
+            cursor = self._open_cursor
+            cursor.execute(
                 """
                 SELECT taskID, title, dateAdded, dateDue, priority,
                        category, details, is_complete, user_id
@@ -511,7 +542,7 @@ class SQLiteConn:
 
             tasks = []
 
-            for row in self.cursor.fetchall():
+            for row in cursor.fetchall():
                 current_task = task.Task(
                     row[1], row[2], row[3], int(row[4]),
                     row[5], row[6], bool(row[7]), row[8]
@@ -525,7 +556,8 @@ class SQLiteConn:
 
     def authenticate_user(self, username, password):
         with self.connection():
-            self.cursor.execute(
+            cursor = self._open_cursor
+            cursor.execute(
                 """
                 SELECT userID, password
                 FROM users
@@ -533,7 +565,7 @@ class SQLiteConn:
                 """,
                 (username,),
             )
-            result = self.cursor.fetchone()
+            result = cursor.fetchone()
 
         if result is None:
             return None

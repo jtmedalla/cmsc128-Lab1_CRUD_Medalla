@@ -1,3 +1,4 @@
+import sqlite3
 from typing import ClassVar
 
 from PySide6.QtCore import (
@@ -187,6 +188,12 @@ class TaskCard(QFrame):
     def _completion_changed(self, state):
         is_complete = state == Qt.CheckState.Checked.value
         self.completion_changed.emit(self.task_id, is_complete)
+
+
+class TaskContainer(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.task_layout = QVBoxLayout(self)
 
 
 class MainApp(QMainWindow):
@@ -399,8 +406,7 @@ class MainApp(QMainWindow):
             scroll_area = QScrollArea(tab)
             scroll_area.setWidgetResizable(True)
 
-            container = QWidget()
-            container.task_layout = QVBoxLayout(container)
+            container = TaskContainer()
             container.task_layout.setContentsMargins(8, 8, 8, 8)
             container.task_layout.setSpacing(8)
             container.task_layout.addStretch()
@@ -832,7 +838,7 @@ class AddTaskWindow(QMainWindow):
                 details=details,
                 user_id=self.user_session.user_id,
             )
-        except Exception as error:
+        except (sqlite3.Error, ValueError) as error:
             self.ui.statusbar.showMessage(
                 f"Failed to add task: {error}",
                 5000
