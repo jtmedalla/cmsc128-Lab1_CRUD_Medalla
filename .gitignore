@@ -12,6 +12,3 @@
 
 # ignore build files
 /build/*
-
-# ignore spec files main.spec
-main.spec
