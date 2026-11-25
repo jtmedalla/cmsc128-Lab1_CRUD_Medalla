@@ -15,48 +15,36 @@ Overall, the tech stack is excellent in developing simple applications, like a t
 
 **How to run the app locally (setup steps, dependencies, commands)**
 
-To run locally, execute the following commands in the terminal:
+**Windows executable**
+
+1. Open the repository's **Actions** tab and select **Build Windows executable**.
+2. Select **Run workflow** and wait for the build to complete.
+3. Open the completed workflow run, download the `windows-executable` artifact, and extract `main.exe`.
+4. Run `main.exe`.
+
+**Run from source**
+
+Clone the repository and enter its folder:
 ```bash
-# clone the repository
-# via HTTPS
-git clone https://github.com/jtmedalla/cmsc128-Lab1_CRUD_Medalla.git
-
-# via SSH
-git clone git@github.com:jtmedalla/cmsc128-Lab1_CRUD_Medalla.git
-
-# change directory to the project folder
+git clone https://github.com/jtmedalla/cmsc128-Lab1_CRUD_Medalla.git cmsc128-lab1_CRUD_Medalla
 cd cmsc128-lab1_CRUD_Medalla
+```
 
-# create a virtual environment
-
-# for linux 
+Create and activate a virtual environment, then install dependencies:
+```bash
+# Linux
 python3 -m venv .venv
-
-# for windows
-python -m venv .venv
-
-# activate the virtual environment
-# for linux
 source .venv/bin/activate
 
-# for windows
-.venv\Scripts\activate
+# Windows (Git Bash)
+python -m venv .venv
+source .venv/Scripts/activate
 
-# install dependencies
-# install pip if not installed
-# for linux
-python3 -m ensurepip --upgrade
-
-# for windows
-python -m ensurepip --upgrade
-
-# if installed
-python -m pip install --upgrade pip
-
-# then run the following command to install dependencies
 pip install -r requirements.txt
+```
 
-# run the app
+Run the app (Linux or Windows Git Bash):
+```bash
 ./run
 ```
 
